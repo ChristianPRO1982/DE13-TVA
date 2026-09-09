@@ -158,6 +158,14 @@ uv run coverage report -m
 uv run ruff check .
 ```
 
+### Rapports SQL complémentaires
+
+```bash
+uv run python quality/run_quality_reports.py
+```
+
+Cette commande exécute les requêtes documentées dans `quality/doc_quality_selects.md` et écrit le résultat dans `reports/quality/quality_control.md`.
+
 La commande `import-data` crée le schéma PostgreSQL si nécessaire et peut être relancée sans dupliquer les lignes.
 
 ## Analyse des données
@@ -241,7 +249,8 @@ Points couverts :
 - API avec origine et fraîcheur du verdict ;
 - rapport de réconciliation consolidé par ligne source ;
 - séparation entre revue humaine, numéros uniques en attente de VIES et lignes source concernées ;
-- historique des tentatives VIES indéterminées sans écraser le dernier verdict exploitable.
+- historique des tentatives VIES indéterminées sans écraser le dernier verdict exploitable ;
+- requêtes SQL complémentaires documentées dans `quality/doc_quality_selects.md`.
 
 Dernière vérification exécutée :
 
@@ -256,6 +265,26 @@ Résultat :
 - tests : 93 tests passés ;
 - couverture globale : 100 % ;
 - Ruff : aucun problème détecté.
+
+Extrait de sortie :
+
+```text
+collected 93 items
+
+tests/test_api.py ..                                           [  2%]
+tests/test_api_service.py .......                              [  9%]
+tests/test_campaign.py .....                                   [ 15%]
+tests/test_cleaning.py ....                                    [ 19%]
+tests/test_countries_settings.py ......                        [ 25%]
+tests/test_database_pipeline.py .........................      [ 52%]
+tests/test_freshness.py ...                                    [ 55%]
+tests/test_importer_reports.py ...........                     [ 67%]
+tests/test_validation.py .....................                 [ 90%]
+tests/test_vies.py .........                                   [100%]
+
+93 passed in 1.02s
+TOTAL                           607      0     84      0   100%
+```
 
 Couverture par module :
 
@@ -293,6 +322,7 @@ Déjà présent :
 - API FastAPI ;
 - rapport de réconciliation reproductible ;
 - détail de réconciliation ligne par ligne ;
+- rapports SQL complémentaires dans `quality/` ;
 - tests automatisés ;
 - note d'architecture : [docs/architecture.md](docs/architecture.md) ;
 - journal de bord : [docs/journal-de-bord.md](docs/journal-de-bord.md).

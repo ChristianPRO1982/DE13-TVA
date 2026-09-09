@@ -128,8 +128,7 @@ def test_run_vies_campaign_fetches_successive_batches(monkeypatch):
     assert len(saved) == 3
     assert progress_lines[0] == "Début campagne VIES"
     assert any(
-        line.startswith("Batch 2: 1 candidat(s) chargé(s)")
-        for line in progress_lines
+        line.startswith("Batch 2: 1 candidat(s) chargé(s)") for line in progress_lines
     )
 
 
@@ -141,7 +140,9 @@ def test_run_vies_campaign_force_refresh_uses_single_selection(monkeypatch):
         return [{"numero_tva_nettoye": "FR11111111111"}]
 
     monkeypatch.setattr(campaign, "fetch_vies_candidates_for_verification", fake_fetch)
-    monkeypatch.setattr(campaign, "upsert_vies_verification", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        campaign, "upsert_vies_verification", lambda *args, **kwargs: None
+    )
 
     summary = run_vies_campaign(
         object(),
