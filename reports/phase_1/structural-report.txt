@@ -1,0 +1,13 @@
+Rapport structurel phase 1
+Total lignes source: 10000
+Numeros nettoyes uniques: 9303
+Candidats VIES uniques: 7111
+Appels VIES evites: 2889
+
+Repartition par motif:
+- ok_structure: 7450
+- format_invalide: 1770
+- pays_hors_referentiel_ue: 311
+- numero_tva_absent: 260
+- pays_hors_perimetre_vies: 208
+- prefixe_pays_incoherent: 1

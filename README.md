@@ -62,15 +62,32 @@ Parametres DBeaver :
 - user : `meridian`
 - password : `meridian`
 
-Commandes utiles pour l'instant :
+Commandes phase 1 :
 
 ```bash
-uv run python main.py
+uv run python -m de13_tva.pipeline import-data
+```
+```bash
+uv run python -m de13_tva.pipeline structural-report
+```
+```bash
+uv run python -m de13_tva.pipeline export-human-review
+```
+
+Chaque commande produit aussi un fichier dans `reports/phase_1/` :
+
+- `import-data.txt` ;
+- `structural-report.txt` ;
+- `a_reviser.csv`.
+
+Commandes qualite :
+
+```bash
 uv run pytest
 uv run ruff check .
 ```
 
-Cette section sera completee quand le pipeline, l'API et les commandes de rapport seront stabilises.
+La commande `import-data` cree le schema PostgreSQL si necessaire et peut etre relancee sans dupliquer les lignes.
 
 ## Analyse des donnees
 
@@ -106,19 +123,31 @@ Constats actuels :
 
 Cette analyse sert a justifier la reduction des appels VIES : normaliser, dedoublonner et rejeter les cas structurellement impossibles avant tout appel reseau.
 
+Resultat actuel de la phase 1 apres import :
+
+- 10 000 lignes chargees ;
+- 9 303 numeros nettoyes uniques non vides ;
+- 7 111 candidats VIES uniques ;
+- 2 889 appels VIES evites avant toute verification en ligne ;
+- repartition structurelle : `ok_structure` (7 450), `format_invalide` (1 770), `pays_hors_referentiel_ue` (311), `numero_tva_absent` (260), `pays_hors_perimetre_vies` (208), `prefixe_pays_incoherent` (1).
+- sortie humaine : `reports/phase_1/a_reviser.csv`, 2 550 lignes.
+
 ## Qualite et robustesse
 
 Points a preparer pendant le developpement :
 
-- chargement idempotent : relancer l'import ne doit pas dupliquer les lignes ;
-- separation claire entre valeur brute, valeur normalisee, verdict structurel et verdict VIES ;
-- trois verdicts metier : `valide`, `invalide`, `indetermine` ;
+- chargement idempotent : relancer l'import ne duplique pas les lignes ;
+- separation claire entre valeur brute, valeur normalisee et verdict structurel ;
+- nettoyage tolerant des numeros TVA avant validation ;
+- sortie dediee aux cas a reviser humainement ;
+- tests automatises sur la phase 1 avec couverture actuelle a 100 % ;
+- a preparer en phase 2 : trois verdicts metier `valide`, `invalide`, `indetermine` ;
 - indisponibilite VIES stockee comme indeterminee, jamais comme invalide ;
 - campagne VIES reprenable apres interruption ;
 - mode echantillon parametrable ;
 - temporisation entre appels VIES ;
 - logs exploitables ;
-- tests sur la normalisation, les motifs de rejet, la reprise et le contrat API.
+- tests sur la reprise et le contrat API.
 
 ## Etat du depot
 
@@ -129,12 +158,12 @@ Deja present :
 - notebook d'exploration initiale ;
 - configuration PostgreSQL via `docker-compose.yml` ;
 - configuration d'environnement dans `.env.example` ;
-- base de projet Python avec `pyproject.toml`.
+- pipeline phase 1 : import, rapport structurel et export humain ;
+- validation structurelle par formats pays ;
+- tests automatises.
 
 A venir :
 
-- pipeline de chargement PostgreSQL ;
-- validation structurelle ;
 - client VIES ;
 - API FastAPI ;
 - rapport de reconciliation reproductible ;

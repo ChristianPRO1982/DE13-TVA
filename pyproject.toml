@@ -7,7 +7,15 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.141.1",
     "pandas>=3.0.5",
+    "psycopg[binary]>=3.3.2",
 ]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [dependency-groups]
 dev = [
@@ -18,9 +26,10 @@ dev = [
 
 [tool.ruff]
 line-length = 88
+extend-exclude = ["*.ipynb"]
 
 [tool.pytest.ini_options]
-addopts = "--cov --cov-report=term-missing"
+addopts = ""
 
 [tool.coverage.run]
 branch = true

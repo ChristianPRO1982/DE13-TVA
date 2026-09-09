@@ -1,0 +1,3 @@
+Rapport import phase 1
+Lignes importees ou mises a jour: 10000
+Idempotence: source_id est la cle primaire, ON CONFLICT met a jour.
