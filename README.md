@@ -94,12 +94,15 @@ Constats actuels :
 
 - 10 000 lignes ;
 - colonnes : `id`, `raison_sociale`, `pays_declare`, `numero_tva`, `date_saisie`, `source_saisie` ;
-- 9 610 numeros bruts distincts ;
-- 9 304 numeros distincts apres normalisation simple ;
-- 119 valeurs vides ou assimilees vides ;
-- 1 861 lignes avec des caracteres de saisie parasites ;
-- pays attendus dans le jeu : `FR`, `DK`, `BE`, `LU`, `SE`, `PT`, `NL`, `IT`, `PL`, `FI` ;
-- pays/code hors perimetre a traiter explicitement : `ZZ`, `QQ`, `GB`, `UK`, `XX`.
+- 5 sources de saisie : `reprise_erp` (2 071), `crm` (2 019), `portail_client` (1 990), `saisie_manuelle` (1 976), `import_fournisseur` (1 944) ;
+- 15 codes pays declares ;
+- codes presents dans le referentiel UE local : `BE`, `DK`, `FI`, `FR`, `IT`, `LU`, `NL`, `PL`, `PT`, `SE` ;
+- codes hors referentiel UE a traiter explicitement : `QQ`, `XX`, `ZZ` ;
+- cas particuliers a arbitrer : `GB` et `UK`, presents dans le fichier mais hors Union europeenne ;
+- 260 lignes contiennent au moins une valeur vide ou aberrante sur l'ensemble des colonnes ;
+- valeurs aberrantes detectees : 59 champs avec un espace seul, 146 valeurs manquantes, 55 champs contenant `-` ;
+- 205 lignes ont un `numero_tva` vide ou blanc : 146 valeurs manquantes et 59 valeurs composees uniquement d'espaces ;
+- aucun caractere interdit detecte dans `numero_tva` avec la regle actuelle, qui accepte lettres, chiffres, espaces, points et tirets.
 
 Cette analyse sert a justifier la reduction des appels VIES : normaliser, dedoublonner et rejeter les cas structurellement impossibles avant tout appel reseau.
 
