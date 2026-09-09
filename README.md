@@ -1,26 +1,28 @@
 # DE13-TVA
 
-Projet d'ecole Simplon autour de la validation d'un referentiel de 10 000 numeros de TVA intracommunautaire pour Meridian Distribution.
+**Valider un référentiel de TVA intracommunautaire**
 
-Le but n'est pas seulement de verifier un format : il faut distinguer les numeros valides, invalides et indetermines, puis preparer un service que la facturation pourra interroger avant d'emettre une facture hors taxe.
+Projet d'école Simplon autour de la validation d'un référentiel de 10 000 numéros de TVA intracommunautaire pour Meridian Distribution.
+
+Le but n'est pas seulement de vérifier un format : il faut distinguer les numéros valides, invalides et indéterminés, puis préparer un service que la facturation pourra interroger avant d'émettre une facture hors taxe.
 
 Brief complet : [brief/brief.md](brief/brief.md)
 
 ## Installation et lancement
 
-Prerequis :
+Prérequis :
 
 - Python 3.12
 - uv
 - Docker et Docker Compose
 
-Installer les dependances Python :
+Installer les dépendances Python :
 
 ```bash
 uv sync
 ```
 
-Creer le fichier d'environnement local :
+Créer le fichier d'environnement local :
 
 ```bash
 cp .env.example .env
@@ -42,19 +44,19 @@ Lancer PostgreSQL :
 docker compose up -d
 ```
 
-Arreter PostgreSQL :
+Arrêter PostgreSQL :
 
 ```bash
 docker compose down
 ```
 
-Supprimer le volume si la base doit etre reinitialisee :
+Supprimer le volume si la base doit être réinitialisée :
 
 ```bash
 docker compose down -v
 ```
 
-Parametres DBeaver :
+Paramètres DBeaver :
 
 - host : `localhost`
 - port : `5435`
@@ -84,7 +86,7 @@ uv run python -m de13_tva.pipeline reconciliation-report
 uv run python -m de13_tva.pipeline export-phase2-human-review
 ```
 
-Ces commandes supposent que PostgreSQL tourne et que `import-data` a deja ete execute. `verify-vies` effectue de vrais appels reseau au service VIES ; pour une demonstration rapide, utiliser un petit echantillon :
+Ces commandes supposent que PostgreSQL tourne et que `import-data` a déjà été exécutée. `verify-vies` effectue de vrais appels réseau au service VIES ; pour une démonstration rapide, utiliser un petit échantillon :
 
 ```bash
 uv run python -m de13_tva.pipeline verify-vies --sample-size 3 --delay 0
@@ -110,7 +112,7 @@ curl --get "http://localhost:8000/vat" --data-urlencode "numero=FR 27 552 032 53
 
 La documentation OpenAPI est disponible sur `/docs` et `/openapi.json`.
 
-Commandes qualite :
+Commandes qualité :
 
 ```bash
 uv run coverage run -m pytest
@@ -118,9 +120,9 @@ uv run coverage report -m
 uv run ruff check .
 ```
 
-La commande `import-data` cree le schema PostgreSQL si necessaire et peut etre relancee sans dupliquer les lignes.
+La commande `import-data` crée le schéma PostgreSQL si nécessaire et peut être relancée sans dupliquer les lignes.
 
-## Analyse des donnees
+## Analyse des données
 
 L'exploration initiale est dans [data/exploration.ipynb](data/exploration.ipynb).
 
@@ -130,77 +132,77 @@ Fichier source principal :
 data/numeros-tva-6a9dbf50da6b4741045153.csv
 ```
 
-Source complementaire :
+Source complémentaire :
 
 ```text
 data/code-eu.csv
 ```
 
-Ce fichier liste les Etats membres de l'Union europeenne et leurs codes ISO. Il sert de referentiel local pour distinguer les pays attendus, les pays hors UE et les codes manifestement invalides. Il provient d'une extraction de la page Wikipedia [Modele:Etats UE](https://fr.wikipedia.org/wiki/Mod%C3%A8le:%C3%89tats_UE), realisee le 09/09/2026.
+Ce fichier liste les États membres de l'Union européenne et leurs codes ISO. Il sert de référentiel local pour distinguer les pays attendus, les pays hors UE et les codes manifestement invalides. Il provient d'une extraction de la page Wikipédia [Modèle:États UE](https://fr.wikipedia.org/wiki/Mod%C3%A8le:%C3%89tats_UE), réalisée le 09/09/2026.
 
 Constats actuels :
 
 - 10 000 lignes ;
 - colonnes : `id`, `raison_sociale`, `pays_declare`, `numero_tva`, `date_saisie`, `source_saisie` ;
 - 5 sources de saisie : `reprise_erp` (2 071), `crm` (2 019), `portail_client` (1 990), `saisie_manuelle` (1 976), `import_fournisseur` (1 944) ;
-- 15 codes pays declares ;
-- codes presents dans le referentiel UE local : `BE`, `DK`, `FI`, `FR`, `IT`, `LU`, `NL`, `PL`, `PT`, `SE` ;
-- codes hors referentiel UE a traiter explicitement : `QQ`, `XX`, `ZZ` ;
-- cas particuliers a arbitrer : `GB` et `UK`, presents dans le fichier mais hors Union europeenne ;
+- 15 codes pays déclarés ;
+- codes présents dans le référentiel UE local : `BE`, `DK`, `FI`, `FR`, `IT`, `LU`, `NL`, `PL`, `PT`, `SE` ;
+- codes hors référentiel UE à traiter explicitement : `QQ`, `XX`, `ZZ` ;
+- cas particuliers à arbitrer : `GB` et `UK`, présents dans le fichier mais hors Union européenne ;
 - 260 lignes contiennent au moins une valeur vide ou aberrante sur l'ensemble des colonnes ;
-- valeurs aberrantes detectees : 59 champs avec un espace seul, 146 valeurs manquantes, 55 champs contenant `-` ;
-- 205 lignes ont un `numero_tva` vide ou blanc : 146 valeurs manquantes et 59 valeurs composees uniquement d'espaces ;
-- aucun caractere interdit detecte dans `numero_tva` avec la regle actuelle, qui accepte lettres, chiffres, espaces, points et tirets.
+- valeurs aberrantes détectées : 59 champs avec un espace seul, 146 valeurs manquantes, 55 champs contenant `-` ;
+- 205 lignes ont un `numero_tva` vide ou blanc : 146 valeurs manquantes et 59 valeurs composées uniquement d'espaces ;
+- aucun caractère interdit détecté dans `numero_tva` avec la règle actuelle, qui accepte les lettres, les chiffres, les espaces, les points et les tirets.
 
-Cette analyse sert a justifier la reduction des appels VIES : normaliser, dedoublonner et rejeter les cas structurellement impossibles avant tout appel reseau.
+Cette analyse sert à justifier la réduction des appels VIES : normaliser, dédoublonner et rejeter les cas structurellement impossibles avant tout appel réseau.
 
-Resultat actuel de la phase 1 apres import :
+Résultat actuel de la phase 1 après import :
 
-- 10 000 lignes chargees ;
-- 9 303 numeros nettoyes uniques non vides ;
+- 10 000 lignes chargées ;
+- 9 303 numéros nettoyés uniques non vides ;
 - 7 111 candidats VIES uniques ;
-- 2 889 appels VIES evites avant toute verification en ligne ;
-- repartition structurelle : `ok_structure` (7 450), `format_invalide` (1 770), `pays_hors_referentiel_ue` (311), `numero_tva_absent` (260), `pays_hors_perimetre_vies` (208), `prefixe_pays_incoherent` (1).
+- 2 889 appels VIES évités avant toute vérification en ligne ;
+- répartition structurelle : `ok_structure` (7 450), `format_invalide` (1 770), `pays_hors_referentiel_ue` (311), `numero_tva_absent` (260), `pays_hors_perimetre_vies` (208), `prefixe_pays_incoherent` (1).
 - sortie humaine : `reports/phase_1/a_reviser.csv`, 2 550 lignes.
 
-Resultat actuel de la phase 2 apres echantillon VIES de 3 numeros :
+Résultat actuel de la phase 2 après échantillon VIES de 3 numéros :
 
-- 3 verifications VIES stockees ;
+- 3 vérifications VIES stockées ;
 - 3 invalides ;
 - 0 valide ;
-- 0 indetermine ;
-- rapport de reconciliation : `reports/phase_2/reconciliation-report.txt` ;
+- 0 indéterminé ;
+- rapport de réconciliation : `reports/phase_2/reconciliation-report.txt` ;
 - export humain phase 2 : `reports/phase_2/a_reviser.csv`.
 
 ## Sources
 
 - Brief projet : [brief/brief.md](brief/brief.md)
 - VIES : https://ec.europa.eu/taxation_customs/vies/
-- Formats des numeros de TVA intracommunautaire : https://taxation-customs.ec.europa.eu/taxation/vat/vat-directive/vat-identification-numbers_en
-- Extraction codes UE : [data/code-eu.csv](data/code-eu.csv), issue de Wikipedia `Modele:Etats UE`, realisee le 09/09/2026.
+- Formats des numéros de TVA intracommunautaire : https://taxation-customs.ec.europa.eu/taxation/vat/vat-directive/vat-identification-numbers_en
+- Extraction des codes UE : [data/code-eu.csv](data/code-eu.csv), issue de Wikipédia `Modèle:États UE`, réalisée le 09/09/2026.
 
-## Qualite et robustesse
+## Qualité et robustesse
 
 Points couverts :
 
 - chargement idempotent : relancer l'import ne duplique pas les lignes ;
-- separation claire entre valeur brute, valeur normalisee et verdict structurel ;
-- nettoyage tolerant des numeros TVA avant validation ;
-- sortie dediee aux cas a reviser humainement ;
-- tests automatises avec couverture actuelle a 100 % ;
-- trois verdicts metier `valide`, `invalide`, `indetermine` ;
-- indisponibilite VIES stockee comme indeterminee, jamais comme invalide ;
-- campagne VIES reprenable apres interruption ;
-- mode echantillon parametrable ;
+- séparation claire entre valeur brute, valeur normalisée et verdict structurel ;
+- nettoyage tolérant des numéros TVA avant validation ;
+- sortie dédiée aux cas à réviser humainement ;
+- tests automatisés avec une couverture actuelle à 100 % ;
+- trois verdicts métier `valide`, `invalide`, `indetermine` ;
+- indisponibilité VIES stockée comme indéterminée, jamais comme invalide ;
+- campagne VIES reprenable après interruption ;
+- mode échantillon paramétrable ;
 - temporisation entre appels VIES ;
 - logs exploitables ;
-- API avec origine et fraicheur du verdict.
+- API avec origine et fraîcheur du verdict.
 
-## Etat du depot
+## État du dépôt
 
-Deja present :
+Déjà présent :
 
-- donnees CSV et Excel dans `data/` ;
+- données CSV et Excel dans `data/` ;
 - extraction des codes pays UE dans `data/code-eu.csv` ;
 - notebook d'exploration initiale ;
 - configuration PostgreSQL via `docker-compose.yml` ;
@@ -209,10 +211,10 @@ Deja present :
 - validation structurelle par formats pays ;
 - campagne VIES phase 2 ;
 - API FastAPI ;
-- rapport de reconciliation reproductible ;
-- tests automatises.
+- rapport de réconciliation reproductible ;
+- tests automatisés.
 
-A venir :
+À venir :
 
 - note d'architecture ;
 - journal de bord.
