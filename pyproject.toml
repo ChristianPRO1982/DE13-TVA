@@ -1,7 +1,7 @@
 [project]
 name = "de13-tva"
 version = "0.1.0"
-description = "Add your description here"
+description = "Pipeline et API de validation de TVA intracommunautaire"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

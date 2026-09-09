@@ -8,6 +8,17 @@ Le but n'est pas seulement de vérifier un format : il faut distinguer les numé
 
 Brief complet : [brief/brief.md](brief/brief.md)
 
+## Technologies
+
+- Python 3.12 pour le pipeline, les règles métier et les tests.
+- PostgreSQL pour stocker les données brutes, normalisées et les verdicts.
+- Docker Compose pour lancer la base localement.
+- FastAPI et Uvicorn pour exposer le service REST.
+- httpx pour interroger VIES avec timeout explicite.
+- pytest, coverage et Ruff pour la qualité.
+
+Ces choix restent proches du brief : ils couvrent le traitement local, le stockage relationnel, l'API et la robustesse face à un service externe instable.
+
 ## Installation et lancement
 
 Prérequis :
@@ -234,3 +245,7 @@ Déjà présent :
 - tests automatisés ;
 - note d'architecture : [docs/architecture.md](docs/architecture.md) ;
 - journal de bord : [docs/journal-de-bord.md](docs/journal-de-bord.md).
+
+## Auteur
+
+ChristianPRO1982

@@ -46,14 +46,14 @@ def validate_structural(
     vat = normalize_vat_number(vat_raw)
 
     if not country:
-        return _review(country, vat, "pays_absent", "Pays declare absent")
+        return _review(country, vat, "pays_absent", "Pays déclaré absent")
 
     if country in OUT_OF_SCOPE_COUNTRIES:
         return _review(
             country,
             vat,
             "pays_hors_perimetre_vies",
-            "Pays present dans le fichier mais hors Union europeenne",
+            "Pays présent dans le fichier mais hors Union européenne",
         )
 
     if country not in eu_country_codes:
@@ -61,11 +61,11 @@ def validate_structural(
             country,
             vat,
             "pays_hors_referentiel_ue",
-            "Code pays absent du referentiel UE local",
+            "Code pays absent du référentiel UE local",
         )
 
     if is_empty_like(vat_raw) or not vat:
-        return _review(country, vat, "numero_tva_absent", "Numero TVA absent")
+        return _review(country, vat, "numero_tva_absent", "Numéro TVA absent")
 
     prefix = vat[:2]
     if len(vat) >= 2 and prefix.isalpha() and prefix != country:
@@ -73,7 +73,7 @@ def validate_structural(
             country,
             vat,
             "prefixe_pays_incoherent",
-            "Prefixe du numero TVA different du pays declare",
+            "Préfixe du numéro TVA différent du pays déclaré",
         )
 
     pattern = SUPPORTED_PATTERNS.get(country)
@@ -90,7 +90,7 @@ def validate_structural(
             country,
             vat,
             "format_invalide",
-            "Numero nettoye non conforme au format attendu pour le pays",
+            "Numéro nettoyé non conforme au format attendu pour le pays",
         )
 
     return StructuralValidationResult(

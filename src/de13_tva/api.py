@@ -14,7 +14,7 @@ app = FastAPI(title="DE13 TVA", version="0.1.0")
 
 @app.get("/vat")
 def verify_vat(
-    numero: str = Query(..., description="Numero de TVA brut ou deja normalise"),
+    numero: str = Query(..., description="Numéro de TVA brut ou déjà normalisé"),
     force_refresh: bool = False,
     max_age_days: int = DEFAULT_FRESHNESS_DAYS,
 ):

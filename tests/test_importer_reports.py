@@ -48,7 +48,7 @@ def test_export_human_review_csv(tmp_path: Path):
             "numero_tva_brut": "QQ123",
             "numero_tva_nettoye": "QQ123",
             "structure_reason": "pays_hors_referentiel_ue",
-            "human_review_reason": "Code pays absent du referentiel UE local",
+            "human_review_reason": "Code pays absent du référentiel UE local",
         }
     ]
 

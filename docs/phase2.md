@@ -1,34 +1,34 @@
-# Phase 2 - Verification VIES, API et reconciliation
+# Phase 2 - Vérification VIES, API et réconciliation
 
-Objectif pour Codex : verifier en ligne uniquement les candidats utiles, stocker les resultats, exposer une API robuste et produire le rapport final.
+Objectif : vérifier en ligne uniquement les candidats utiles, stocker les résultats, exposer une API robuste et produire un rapport final exploitable.
 
-Cette phase part du resultat de `docs/phase1.md`. Elle ne doit pas refaire des appels reseau pour les lignes deja tranchees structurellement ni pour des numeros nettoyes deja verifies.
+Cette phase part du résultat de `docs/phase1.md`. Elle ne rappelle pas VIES pour les lignes déjà rejetées structurellement ni pour les numéros déjà traités récemment.
 
 Brief source : `brief/brief.md`
 
-## Principes non negociables
+## Principes non négociables
 
 - Toujours distinguer `valide`, `invalide` et `indetermine`.
-- Une erreur reseau, un timeout ou une indisponibilite VIES donne `indetermine`, jamais `invalide`.
+- Une erreur réseau, un timeout ou une indisponibilité VIES donne `indetermine`, jamais `invalide`.
 - Un verdict doit toujours avoir une origine et une date.
-- Une campagne interrompue doit reprendre sans rappeler les numeros deja verifies.
-- Le mode echantillon doit etre disponible des le debut.
-- Les codes impossibles ou ambigus doivent pouvoir sortir dans un fichier de revision humaine.
+- Une campagne interrompue doit reprendre sans rappeler les numéros déjà traités.
+- Le mode échantillon doit être disponible.
+- Les codes impossibles ou ambigus doivent pouvoir sortir dans un fichier de révision humaine.
 
 ## Client VIES
 
-Avant la campagne, prevoir un client isole, testable, avec timeout explicite.
+Le client VIES est isolé et testable, avec timeout explicite.
 
-Endpoint REST attendu par le brief :
+Endpoint REST utilisé :
 
 ```text
 https://ec.europa.eu/taxation_customs/vies/rest-api/ms/{countryCode}/vat/{vatNumber}
 ```
 
-Le client doit recevoir un numero deja nettoye, puis separer :
+Le client reçoit un numéro déjà nettoyé, puis sépare :
 
-- code pays VIES ;
-- numero national sans prefixe pays.
+- le code pays VIES ;
+- le numéro national sans préfixe pays.
 
 Exemple :
 
@@ -36,27 +36,37 @@ Exemple :
 FR27552032534 -> countryCode=FR, vatNumber=27552032534
 ```
 
-Reponse a stocker :
+Réponse stockée :
 
 - verdict fonctionnel : `valide`, `invalide`, `indetermine` ;
-- date de verification ;
+- date de vérification ;
 - payload brut utile ou message d'erreur ;
 - statut HTTP si disponible ;
-- temps de reponse si disponible.
+- temps de réponse si disponible ;
+- origine : `campaign` ou `api`.
 
-## Campagne de verification
+## Stockage des résultats VIES
 
-La campagne doit travailler sur les numeros uniques issus de la phase 1 :
+Deux niveaux de stockage sont utilisés :
+
+- `vies_attempts` historise toutes les tentatives, y compris les timeouts, erreurs HTTP et réponses inattendues ;
+- `vies_verifications` conserve uniquement le dernier verdict courant exploitable par numéro nettoyé unique.
+
+Un résultat `indetermine` ne doit pas écraser un ancien verdict `valide` ou `invalide`. Il est historisé dans `vies_attempts`, puis le dernier verdict exploitable reste disponible pour l'API et la réconciliation.
+
+## Campagne de vérification
+
+La campagne travaille sur les numéros uniques issus de la phase 1 :
 
 - candidats structurellement acceptables ;
-- dedoublonnes sur `numero_tva_nettoye` ;
-- non deja verifies, sauf option explicite de rafraichissement ;
-- limites par `--sample-size` si demande.
+- dédoublonnés sur `numero_tva_nettoye` ;
+- non déjà traités, sauf option explicite de rafraîchissement ;
+- limités par `--sample-size` ou `--limit` si demandé.
 
-Commandes attendues :
+Commandes :
 
 ```bash
-uv run python -m de13_tva.pipeline verify-vies --sample-size 200
+uv run python -m de13_tva.pipeline verify-vies --sample-size 200 --delay 1.0
 uv run python -m de13_tva.pipeline verify-vies --limit 50 --delay 1.0
 uv run python -m de13_tva.pipeline verify-vies --refresh-days 30
 ```
@@ -64,46 +74,40 @@ uv run python -m de13_tva.pipeline verify-vies --refresh-days 30
 Comportements attendus :
 
 - temporisation configurable entre les appels ;
-- logs lisibles : numero, rang, verdict, duree, erreur eventuelle ;
-- commit en base apres chaque reponse ou petit lot pour permettre la reprise ;
-- pas de rappel si une verification exploitable existe deja ;
-- possibilite de relancer la meme commande apres interruption.
+- journal lisible : numéro, rang, verdict, durée ;
+- commit après chaque réponse pour permettre la reprise ;
+- pas de rappel par défaut si une tentative existe déjà ;
+- rafraîchissement possible avec `--refresh-days` ou `--force-refresh`.
 
-## Fraicheur des verdicts
+## Fraîcheur des verdicts
 
-Proposition par defaut :
+La fraîcheur par défaut d'un verdict VIES est de 30 jours pour l'API.
 
-- un verdict VIES est considere frais pendant 30 jours pour l'API ;
-- au-dela, l'API peut retourner la valeur connue avec origine `stored_stale` ou tenter un appel VIES frais selon l'option retenue ;
-- un numero facture hors taxe devrait etre reverifie si le dernier verdict est trop ancien.
-
-Cette duree doit rester configuree par variable ou constante documentee.
+Au-delà, l'API tente un appel VIES frais. Si VIES est indisponible et qu'un ancien verdict exploitable existe, l'API retourne ce verdict avec l'origine `stored_stale` et garde la tentative échouée dans l'historique.
 
 ## API FastAPI
 
-L'API doit verifier les numeros recus de maniere robuste, y compris lorsque l'appelant envoie une saisie bruitee.
-
-Nettoyage en entree :
-
-- conserver la valeur brute recue par l'API ;
-- supprimer tous les caracteres non alphanumeriques ;
-- passer en majuscules ;
-- exemple : `AA 9999 9999`, `AA-9999.9999`, `AA/9999_9999` -> `AA99999999` ;
-- refuser ou classer `indetermine` si le nettoyage produit une valeur vide ;
-- marquer `needs_human_review=true` si le pays est absent, hors UE, ambigu ou contredit par le prefixe du numero.
-
-Endpoint minimal recommande :
+Endpoint public :
 
 ```text
-GET /vat/{numero_tva}
+GET /vat?numero=FR%2027%20552%20032%20534
 ```
 
-Parametres optionnels utiles :
+Paramètres optionnels :
 
 - `force_refresh=true` pour demander un appel VIES frais ;
-- `max_age_days=30` pour controler la fraicheur acceptee.
+- `max_age_days=30` pour contrôler la fraîcheur acceptée.
 
-Contrat de reponse minimal :
+Nettoyage en entrée :
+
+- conserver la valeur brute reçue par l'API ;
+- supprimer tous les caractères non alphanumériques ;
+- passer en majuscules ;
+- exemple : `AA 9999 9999`, `AA-9999.9999`, `AA/9999_9999` -> `AA99999999` ;
+- classer `indetermine` si le nettoyage produit une valeur vide ;
+- marquer `needs_human_review=true` si le pays est absent, hors UE, ambigu ou contredit par le préfixe du numéro.
+
+Contrat de réponse :
 
 ```json
 {
@@ -120,88 +124,72 @@ Contrat de reponse minimal :
 
 Origines attendues :
 
-- `vies_fresh` : appel VIES realise pendant la requete ;
+- `vies_fresh` : appel VIES réalisé pendant la requête ;
 - `stored_fresh` : verdict connu et encore frais ;
 - `stored_stale` : verdict connu mais trop ancien ;
-- `structural_reject` : numero impossible avant VIES ;
+- `structural_reject` : numéro impossible avant VIES ;
 - `unavailable` : VIES injoignable et pas de verdict exploitable ;
 - `human_review` : cas non fiable sans arbitrage humain.
 
-L'API ne doit jamais retourner seulement `true` ou `false`. Le consommateur doit savoir d'ou vient l'information et de quand elle date.
-
-Documentation OpenAPI attendue :
+Documentation OpenAPI :
 
 ```text
 /docs
 /openapi.json
 ```
 
-## Sortie des codes a reviser
+## Sortie des codes à réviser
 
-La phase 2 doit reutiliser ou completer la sortie humaine de la phase 1.
+La phase 2 complète la sortie humaine de la phase 1 avec les cas issus de l'API ou des réponses VIES non exploitables.
 
-Cas a sortir :
-
-- entrees API nettoyees mais ambigues ;
-- pays hors UE ou inconnu ;
-- prefixe pays absent ;
-- prefixe pays different du pays declare quand le contexte existe ;
-- VIES indisponible sans valeur connue ;
-- reponses VIES inattendues ou incompletes ;
-- tout cas classe `indetermine` qui peut etre resolu par une correction humaine.
-
-Format recommande :
+Sortie :
 
 ```text
 reports/phase_2/a_reviser.csv
 ```
 
-ou une table/vue PostgreSQL :
+Table associée :
 
 ```text
 human_review_items
 ```
 
-## Rapport de reconciliation
+Les lignes simplement en attente d'appel VIES ne sont pas des cas de revue humaine. Elles sont signalées dans le détail de réconciliation avec `needs_vies_verification=true`.
 
-Commande attendue :
+## Rapport de réconciliation
+
+Commande :
 
 ```bash
 uv run python -m de13_tva.pipeline reconciliation-report
 ```
 
-Le rapport doit contenir :
+Sorties :
+
+- `reports/phase_2/reconciliation-report.txt` ;
+- `reports/phase_2/reconciliation-details.csv`.
+
+Le rapport contient :
 
 - total lignes source ;
-- total numeros nettoyes uniques ;
+- total numéros nettoyés uniques ;
 - total candidats VIES ;
 - appels VIES évités ;
-- valides ;
-- invalides ;
-- indetermines ;
+- verdicts finaux par ligne source ;
+- verdicts VIES courants ;
+- tentatives VIES historisées ;
+- numéros uniques et lignes source encore en attente de VIES ;
 - motifs structurels ;
-- erreurs VIES ;
 - doublons ;
-- cas a reviser humainement.
+- cas à réviser humainement.
 
-## Tests a prevoir
+## Critères d'acceptation
 
-- normalisation API avec espaces, points, tirets, slashs, underscores et autres caracteres speciaux ;
-- valeur vide ou composee uniquement de caracteres supprimables ;
-- pays hors UE ;
-- `GB` et `UK` ;
-- cache frais vs cache expire ;
-- indisponibilite VIES classee `indetermine` ;
-- reprise de campagne sans nouvel appel ;
-- contrat JSON de l'API ;
-- generation du rapport.
-
-## Criteres d'acceptation
-
-- Une campagne echantillon s'execute avec `--sample-size 200`.
-- Une relance ne rappelle pas les numeros deja verifies.
-- Les resultats VIES sont stockes avec date et origine.
-- L'API nettoie les saisies bruitees et retourne un verdict complet.
-- Les cas non fiables sortent en revision humaine.
-- Les trois etats `valide`, `invalide`, `indetermine` sont visibles dans les donnees ou dans le rapport.
-- Le rapport se regenere par une commande documentee.
+- Une campagne échantillon s'exécute avec `--sample-size 200`.
+- Une relance ne rappelle pas les numéros déjà traités.
+- Les tentatives VIES sont historisées avec date et origine.
+- Le dernier verdict exploitable n'est pas écrasé par une indisponibilité.
+- L'API nettoie les saisies bruitées et retourne un verdict complet.
+- Les cas non fiables sortent en révision humaine.
+- Les trois états `valide`, `invalide`, `indetermine` sont visibles dans les données ou dans le rapport.
+- Le rapport se régénère par une commande documentée.

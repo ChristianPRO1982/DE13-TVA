@@ -574,7 +574,7 @@ def fetch_reconciliation_details(conn) -> list[dict[str, object]]:
                     WHEN vr.human_review_reason IS NOT NULL
                         THEN vr.human_review_reason
                     WHEN vv.vies_verdict = 'indetermine'
-                        THEN coalesce(vv.error_message, 'VIES indetermine')
+                        THEN coalesce(vv.error_message, 'VIES indéterminé')
                     ELSE NULL
                 END AS review_reason
             FROM vat_records vr

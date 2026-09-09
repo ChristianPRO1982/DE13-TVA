@@ -1,13 +1,11 @@
-# Phase 1 - Cadrage, nettoyage, reduction et chargement
+# Phase 1 - Cadrage, nettoyage et chargement PostgreSQL
 
-Objectif pour Codex : construire le socle de donnees avant tout appel VIES.
-
-Cette phase doit produire une base PostgreSQL chargée avec les 10 000 lignes, les valeurs brutes conservées, les valeurs nettoyées/normalisées, le verdict structurel et son motif. Elle doit aussi chiffrer le nombre d'appels VIES évités.
+Objectif : construire le socle local avant tout appel VIES. La phase 1 lit le CSV source, conserve les valeurs brutes, nettoie les champs utiles, applique une validation structurelle par pays, charge PostgreSQL de façon idempotente et produit les rapports de contrôle dans `reports/phase_1/`.
 
 Brief source : `brief/brief.md`
 Exploration source : `data/exploration.ipynb`
 
-## Donnees a prendre en compte
+## Données
 
 Fichier principal :
 
@@ -15,7 +13,7 @@ Fichier principal :
 data/numeros-tva-6a9dbf50da6b4741045153.csv
 ```
 
-Colonnes :
+Colonnes utilisées :
 
 - `id`
 - `raison_sociale`
@@ -24,140 +22,94 @@ Colonnes :
 - `date_saisie`
 - `source_saisie`
 
-Referentiel local des codes UE :
+Référentiel local des codes UE :
 
 ```text
 data/code-eu.csv
 ```
 
-Ce fichier vient d'une extraction de la page Wikipedia `Modele:Etats UE` realisee le 09/09/2026. Il sert uniquement a identifier les codes pays membres de l'Union europeenne dans le jeu.
+Ce fichier est une extraction de la page Wikipédia `Modèle:États UE`, réalisée le 09/09/2026. Il sert de source locale pour identifier les pays membres de l'Union européenne dans ce projet.
 
-Constats de l'exploration :
+Constats issus de l'exploration :
 
-- 10 000 lignes.
-- 5 sources de saisie : `reprise_erp` (2 071), `crm` (2 019), `portail_client` (1 990), `saisie_manuelle` (1 976), `import_fournisseur` (1 944).
-- 15 codes pays declares.
-- Codes UE presents dans le jeu : `BE`, `DK`, `FI`, `FR`, `IT`, `LU`, `NL`, `PL`, `PT`, `SE`.
-- Codes hors referentiel UE : `QQ`, `XX`, `ZZ`.
-- Cas particuliers : `GB` et `UK`, presents dans les donnees mais hors Union europeenne.
-- 260 lignes contiennent au moins une valeur vide ou aberrante sur l'ensemble des colonnes.
-- 205 lignes ont un `numero_tva` vide ou blanc : 146 valeurs manquantes et 59 valeurs composees uniquement d'espaces.
-- Aucun caractere interdit detecte dans `numero_tva` avec la regle d'exploration actuelle, qui accepte lettres, chiffres, espaces, points et tirets.
+- 10 000 lignes source.
+- 9 303 numéros TVA nettoyés uniques.
+- 15 codes pays déclarés.
+- 10 pays dans le périmètre VIES du jeu : `BE`, `DK`, `FI`, `FR`, `IT`, `LU`, `NL`, `PL`, `PT`, `SE`.
+- Codes hors référentiel UE présents dans les données : `QQ`, `XX`, `ZZ`.
+- Cas hors périmètre VIES à revoir : `GB`, `UK`.
+- 260 lignes ont un numéro TVA absent, blanc ou nettoyé vide.
 
-## Regles de nettoyage
+## Nettoyage
 
-Le nettoyage doit etre tolerant et conserver la trace de la valeur d'origine.
+Le pipeline conserve toujours la valeur brute et stocke une valeur normalisée séparée.
 
 Pour `numero_tva` :
 
-- conserver `numero_tva_brut` exactement tel qu'il est dans le CSV ;
-- produire `numero_tva_nettoye` en supprimant tous les caracteres non alphanumeriques, puis en passant en majuscules ;
-- exemple : `AA 9999 9999`, `AA-9999.9999`, `AA/9999_9999` doivent devenir `AA99999999` ;
-- ne jamais transformer une valeur vide, blanche ou manquante en numero valide ;
-- signaler toute valeur nettoyee vide comme `numero_tva_absent`.
+- suppression de tous les caractères non alphanumériques ;
+- passage en majuscules ;
+- exemples : `AA 9999 9999`, `AA-9999.9999`, `AA/9999_9999` deviennent `AA99999999` ;
+- une valeur vide, blanche ou entièrement supprimée reste invalide et reçoit le motif `numero_tva_absent`.
 
 Pour `pays_declare` :
 
-- trim + uppercase ;
-- verifier l'appartenance au referentiel local `data/code-eu.csv` ;
-- `QQ`, `XX`, `ZZ` doivent sortir en rejet structurel ;
-- `GB` et `UK` doivent etre traites comme cas a reviser ou hors perimetre UE, pas comme des pays UE valides ;
-- ne pas inventer de correction automatique pays si elle n'est pas justifiee.
+- trim ;
+- passage en majuscules ;
+- contrôle dans `data/code-eu.csv` ;
+- `GB` et `UK` sont classés hors périmètre VIES ;
+- `QQ`, `XX`, `ZZ` sont rejetés comme hors référentiel UE.
 
-Pour les champs non TVA :
+## Validation Structurelle
 
-- conserver les valeurs brutes ;
-- reperer les champs vides, blancs, `-`, `null`, `N/A` ;
-- ne pas bloquer le chargement global pour une anomalie de champ non critique, mais la rendre visible dans les motifs ou dans un rapport.
+La validation actuelle est volontairement isolée dans le code métier pour pouvoir être remplacée si le module officiel mentionné par le brief est fourni plus tard.
 
-## Validation structurelle
+Limite assumée : la phase 1 vérifie les formats et les motifs métier, mais ne prétend pas implémenter toutes les clés de contrôle nationales.
 
-Le brief annonce un module fourni de validation structurelle des dix pays du jeu. Si le module est present dans le depot, l'utiliser tel quel et documenter ses motifs.
+Formats couverts :
 
-Si le module n'est pas present :
+- `BE` : `BE` + 10 chiffres
+- `DK` : `DK` + 8 chiffres
+- `FI` : `FI` + 8 chiffres
+- `FR` : `FR` + 2 caractères alphanumériques + 9 chiffres
+- `IT` : `IT` + 11 chiffres
+- `LU` : `LU` + 8 chiffres
+- `NL` : `NL` + 9 chiffres + `B` + 2 chiffres
+- `PL` : `PL` + 10 chiffres
+- `PT` : `PT` + 9 chiffres
+- `SE` : `SE` + 12 chiffres
 
-- creer une interface interne stable pour la validation structurelle ;
-- implementer au minimum les motifs necessaires au pipeline ;
-- isoler le code pour pouvoir remplacer facilement l'implementation par le module fourni si celui-ci est ajoute plus tard.
+Motifs produits :
 
-Motifs minimaux attendus :
+- `ok_structure`
+- `numero_tva_absent`
+- `pays_absent`
+- `pays_hors_referentiel_ue`
+- `pays_hors_perimetre_vies`
+- `prefixe_pays_incoherent`
+- `format_invalide`
+- `a_reviser_humainement`
 
-- `ok_structure` ;
-- `numero_tva_absent` ;
-- `pays_absent` ;
-- `pays_hors_referentiel_ue` ;
-- `pays_hors_perimetre_vies` ;
-- `format_invalide` ;
-- `cle_controle_invalide` si la verification de cle est disponible ;
-- `a_reviser_humainement` pour les cas nettoyes mais ambigus.
-
-Un verdict structurel `ok_structure` signifie seulement que le format local semble correct. Il ne prouve pas que le numero existe ni qu'il est actif au moment de la facturation.
+Un `ok_structure` signifie uniquement que le numéro est candidat à une vérification VIES. Il ne prouve pas que le numéro existe, ni qu'il est actif.
 
 ## Base PostgreSQL
 
-Creer un schema versionne qui distingue le recu du deduit.
+La table principale est `vat_records`. Elle contient une ligne par enregistrement source avec :
 
-Table principale recommandee : `vat_records`.
+- l'identifiant source `source_id` ;
+- la raison sociale ;
+- le pays brut et le pays normalisé ;
+- le numéro TVA brut et le numéro nettoyé ;
+- la date et la source de saisie ;
+- le verdict structurel ;
+- le motif structurel ;
+- les indicateurs de revue humaine ;
+- les timestamps techniques.
 
-Champs minimaux :
+Le chargement est idempotent : `source_id` est unique et l'import utilise `INSERT ... ON CONFLICT DO UPDATE`.
 
-- `source_id` : id du fichier ;
-- `raison_sociale` ;
-- `pays_declare_brut` ;
-- `pays_declare_normalise` ;
-- `numero_tva_brut` ;
-- `numero_tva_nettoye` ;
-- `date_saisie` ;
-- `source_saisie` ;
-- `structure_verdict` ;
-- `structure_reason` ;
-- `needs_human_review` ;
-- `human_review_reason` ;
-- timestamps techniques.
+La vue `vies_candidates` dédoublonne les numéros nettoyés structurellement valides. Elle prépare la phase 2 en évitant d'appeler VIES plusieurs fois pour le même numéro.
 
-Contraintes :
-
-- `source_id` unique pour eviter les doublons au rechargement ;
-- index sur `numero_tva_nettoye` ;
-- index sur `structure_verdict` et `structure_reason`.
-
-Prevoir aussi une table ou une vue dediee aux numeros uniques candidats VIES :
-
-- uniquement les `numero_tva_nettoye` structurellement acceptables ;
-- un seul appel VIES par numero nettoye unique ;
-- les lignes rejetees structurellement ne doivent pas etre appelees.
-
-## Sortie a reviser humainement
-
-La phase 1 doit produire une sortie exploitable par un humain, par exemple :
-
-```text
-reports/a_reviser.csv
-```
-
-Elle doit contenir au minimum :
-
-- `source_id` ;
-- `raison_sociale` ;
-- `pays_declare_brut` ;
-- `pays_declare_normalise` ;
-- `numero_tva_brut` ;
-- `numero_tva_nettoye` ;
-- `structure_reason` ;
-- `human_review_reason`.
-
-Exemples de cas a inclure :
-
-- pays `GB` ou `UK` ;
-- pays `QQ`, `XX`, `ZZ` ;
-- numero TVA absent ou blanc ;
-- numero nettoye vide ;
-- numero nettoye dont le pays prefixe contredit `pays_declare_normalise` ;
-- numero nettoye mais dont le format reste non conforme.
-
-## Commandes attendues
-
-Les noms exacts peuvent evoluer, mais la phase 1 doit aboutir a des commandes documentees de ce type :
+## Commandes
 
 ```bash
 uv run python -m de13_tva.pipeline import-data
@@ -165,16 +117,39 @@ uv run python -m de13_tva.pipeline structural-report
 uv run python -m de13_tva.pipeline export-human-review
 ```
 
-La commande d'import doit etre idempotente : deux executions consecutives ne doivent pas doubler les lignes.
+Rapports générés :
 
-## Criteres d'acceptation
+- `reports/phase_1/import-data.txt`
+- `reports/phase_1/structural-report.txt`
+- `reports/phase_1/a_reviser.csv`
 
-- Les 10 000 lignes sont chargees en base.
-- Les valeurs brutes sont conservees.
-- Les numeros TVA sont nettoyes de maniere robuste.
-- Les pays hors UE et cas `GB`/`UK` sont identifies.
+## Résultats Actuels
+
+Après import complet :
+
+- lignes source : 10 000 ;
+- numéros nettoyés uniques : 9 303 ;
+- candidats VIES uniques : 7 111 ;
+- appels VIES évités avant phase 2 : 2 889 ;
+- lignes à revoir humainement en phase 1 : 2 550.
+
+Répartition structurelle observée :
+
+- `ok_structure` : 7 450 ;
+- `format_invalide` : 1 770 ;
+- `pays_hors_referentiel_ue` : 311 ;
+- `numero_tva_absent` : 260 ;
+- `pays_hors_perimetre_vies` : 208 ;
+- `prefixe_pays_incoherent` : 1.
+
+## Critères D'Acceptation
+
+- Les 10 000 lignes sont chargées en base.
+- Les valeurs brutes sont conservées.
+- Les numéros TVA sont nettoyés de manière robuste.
+- Les pays hors UE et les cas `GB` / `UK` sont identifiés.
 - Chaque ligne a un verdict structurel et un motif.
-- Les doublons par numero nettoye sont detectes.
+- Les doublons par numéro nettoyé sont détectés.
 - Le nombre d'appels VIES évités est chiffré.
-- Une sortie des cas a reviser humainement est produite.
-- Les tests couvrent au minimum la normalisation, les pays invalides, les valeurs vides et l'idempotence du chargement.
+- Les cas à revoir humainement sont exportés dans `reports/phase_1/a_reviser.csv`.
+- Les tests couvrent la normalisation, les règles pays, les formats attendus, l'export humain et l'idempotence SQL quand PostgreSQL est disponible.
