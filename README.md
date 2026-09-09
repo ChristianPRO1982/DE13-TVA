@@ -111,6 +111,16 @@ Ces commandes supposent que PostgreSQL tourne et que `import-data` a déjà ét�
 uv run python -m de13_tva.pipeline verify-vies --sample-size 3 --delay 0
 ```
 
+Déroulé complet pour générer les rapports de phase 2 :
+
+```bash
+docker compose up -d
+uv run python -m de13_tva.pipeline import-data
+uv run python -m de13_tva.pipeline verify-vies --sample-size 3 --delay 0
+uv run python -m de13_tva.pipeline reconciliation-report
+uv run python -m de13_tva.pipeline export-phase2-human-review
+```
+
 Chaque commande produit aussi un fichier dans `reports/phase_2/` :
 
 - `verify-vies.txt` ;
@@ -224,6 +234,39 @@ Points couverts :
 - rapport de réconciliation consolidé par ligne source ;
 - séparation entre revue humaine, numéros uniques en attente de VIES et lignes source concernées ;
 - historique des tentatives VIES indéterminées sans écraser le dernier verdict exploitable.
+
+Dernière vérification exécutée :
+
+```bash
+uv run coverage run -m pytest
+uv run coverage report -m
+uv run ruff check .
+```
+
+Résultat :
+
+- tests : 90 tests passés ;
+- couverture globale : 100 % ;
+- Ruff : aucun problème détecté.
+
+Couverture par module :
+
+| Module | Couverture |
+| --- | ---: |
+| `src/de13_tva/api.py` | 100 % |
+| `src/de13_tva/api_service.py` | 100 % |
+| `src/de13_tva/campaign.py` | 100 % |
+| `src/de13_tva/cleaning.py` | 100 % |
+| `src/de13_tva/countries.py` | 100 % |
+| `src/de13_tva/database.py` | 100 % |
+| `src/de13_tva/freshness.py` | 100 % |
+| `src/de13_tva/importer.py` | 100 % |
+| `src/de13_tva/pipeline.py` | 100 % |
+| `src/de13_tva/reports.py` | 100 % |
+| `src/de13_tva/settings.py` | 100 % |
+| `src/de13_tva/validation.py` | 100 % |
+| `src/de13_tva/vies.py` | 100 % |
+| **Total** | **100 %** |
 
 Limite assumée : le module officiel de validation structurelle avec clés de contrôle mentionné dans le brief n'est pas présent dans le dépôt. La validation actuelle repose donc sur des formats par pays, isolés dans le code pour pouvoir être remplacés si ce module est fourni.
 

@@ -1,1 +1,4 @@
 source,input_raw,numero_tva_nettoye,review_reason,created_at
+api,aa123,AA123,pays_hors_referentiel_ue,2026-09-09 14:36:35.836900+00:00
+api,123,123,pays_absent,2026-09-09 14:36:46.441289+00:00
+api,ZZ23140153,ZZ23140153,pays_hors_referentiel_ue,2026-09-09 14:37:44.248416+00:00

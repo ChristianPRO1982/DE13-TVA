@@ -3,27 +3,27 @@ Total lignes source: 10000
 Numéros nettoyés uniques: 9303
 Candidats VIES uniques: 7111
 Appels VIES évités: 2889
-Verdicts VIES courants stockés: 3
-Tentatives VIES historisées: 3
-Numéros VIES uniques en attente: 7108
-Lignes source en attente de VIES: 7446
+Verdicts VIES courants stockés: 7
+Tentatives VIES historisées: 7
+Numéros VIES uniques en attente: 7104
+Lignes source en attente de VIES: 7441
 Doublons par numéro nettoyé: 398
 Cas à réviser phase 1: 2550
-Cas à réviser phase 2: 0
+Cas à réviser phase 2: 3
 
 Verdicts finaux par ligne source:
 - valide: 0
-- invalide: 4
-- indetermine: 9996
+- invalide: 9
+- indetermine: 9991
 
 Verdicts VIES courants:
 - valide: 0
-- invalide: 3
+- invalide: 7
 - indetermine: 0
 
 Tentatives VIES par verdict:
 - valide: 0
-- invalide: 3
+- invalide: 7
 - indetermine: 0
 
 Motifs structurels:
