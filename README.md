@@ -1,106 +1,32 @@
 # DE13-TVA
 
-Projet d'ecole Simplon : valider un referentiel de numeros de TVA intracommunautaire pour Meridian Distribution.
+Projet d'ecole Simplon autour de la validation d'un referentiel de 10 000 numeros de TVA intracommunautaire pour Meridian Distribution.
 
-L'objectif metier est de repondre a la question :
+Le but n'est pas seulement de verifier un format : il faut distinguer les numeros valides, invalides et indetermines, puis preparer un service que la facturation pourra interroger avant d'emettre une facture hors taxe.
 
-> Parmi les 10 000 numeros fournis, lesquels sont valides, lesquels ne le sont pas, et lesquels n'ont pas pu etre tranches ?
+Brief complet : [brief/brief.md](brief/brief.md)
 
-Le brief complet est disponible dans [brief/brief.md](brief/brief.md).
+## Installation et lancement
 
-## Contexte
-
-Meridian Distribution facture hors taxe certains clients de l'Union europeenne lorsque leur numero de TVA intracommunautaire est valide. Apres un controle fiscal, l'entreprise veut :
-
-- qualifier son referentiel historique de 10 000 numeros ;
-- reduire les appels inutiles au service externe VIES ;
-- conserver les verdicts obtenus avec leur date ;
-- exposer une API REST utilisable par la facturation avant emission d'une facture hors taxe.
-
-Un numero peut donc aboutir a trois etats fonctionnels :
-
-- `valide` : le numero est confirme comme valide ;
-- `invalide` : le numero est confirme comme invalide ;
-- `indetermine` : le service ou les donnees disponibles ne permettent pas de conclure.
-
-Une indisponibilite de VIES ne doit jamais etre assimilee a une invalidite.
-
-## Technologies
-
-- Python 3.12
-- FastAPI
-- PostgreSQL 16
-- Docker Compose
-- pandas pour l'exploration des donnees
-- pytest et ruff pour les controles de qualite
-- VIES, service public de verification des numeros de TVA intracommunautaire
-
-## Structure du depot
-
-```text
-.
-|-- brief/
-|   `-- brief.md
-|-- data/
-|   |-- numeros-tva-6a9dbf50da6b4741045153.csv
-|   |-- numeros-tva-6a9dbf5645cb2220920914.xlsx
-|   `-- exploration.ipynb
-|-- src/
-|   `-- de13_tva/
-|       |-- __init__.py
-|       `-- main.py
-|-- tests/
-|   `-- __init__.py
-|-- docker-compose.yml
-|-- pyproject.toml
-|-- uv.lock
-|-- .env.example
-`-- README.md
-```
-
-## Donnees
-
-Le jeu fourni contient 10 000 lignes avec les colonnes suivantes :
-
-- `id`
-- `raison_sociale`
-- `pays_declare`
-- `numero_tva`
-- `date_saisie`
-- `source_saisie`
-
-Premiers constats d'exploration :
-
-- 10 000 lignes ;
-- 9 610 numeros bruts distincts ;
-- 9 304 numeros distincts apres normalisation simple alphanumerique ;
-- 119 valeurs vides ou assimilees vides ;
-- 1 861 lignes contenant des caracteres de bruit de saisie ;
-- pays declares : `FR`, `DK`, `BE`, `LU`, `SE`, `PT`, `NL`, `IT`, `PL`, `FI`, ainsi que `ZZ`, `QQ`, `GB`, `UK`, `XX`.
-
-Les pays hors perimetre ou suspects doivent etre traites explicitement dans les motifs de rejet.
-
-## Installation
-
-Pre-requis :
+Prerequis :
 
 - Python 3.12
 - uv
 - Docker et Docker Compose
 
-Installer les dependances :
+Installer les dependances Python :
 
 ```bash
 uv sync
 ```
 
-Creer la configuration locale :
+Creer le fichier d'environnement local :
 
 ```bash
 cp .env.example .env
 ```
 
-Valeurs attendues pour PostgreSQL :
+Valeurs attendues :
 
 ```env
 POSTGRES_DB=tva
@@ -110,19 +36,19 @@ POSTGRES_HOST=localhost
 POSTGRES_PORT=5435
 ```
 
-## Lancer PostgreSQL
+Lancer PostgreSQL :
 
 ```bash
 docker compose up -d
 ```
 
-Arreter la base :
+Arreter PostgreSQL :
 
 ```bash
 docker compose down
 ```
 
-Purger le volume PostgreSQL si la base doit etre recreee depuis zero :
+Supprimer le volume si la base doit etre reinitialisee :
 
 ```bash
 docker compose down -v
@@ -130,115 +56,84 @@ docker compose down -v
 
 Parametres DBeaver :
 
-- driver : PostgreSQL
 - host : `localhost`
 - port : `5435`
 - database : `tva`
-- utilisateur : `meridian`
-- mot de passe : `meridian`
+- user : `meridian`
+- password : `meridian`
 
-## Commandes de developpement
-
-Lancer le point d'entree actuel :
+Commandes utiles pour l'instant :
 
 ```bash
 uv run python main.py
-```
-
-Lancer les tests :
-
-```bash
 uv run pytest
-```
-
-Lancer ruff :
-
-```bash
 uv run ruff check .
 ```
 
-## Pipeline attendu
+Cette section sera completee quand le pipeline, l'API et les commandes de rapport seront stabilises.
 
-Le pipeline final doit suivre l'ordre impose par le brief :
+## Analyse des donnees
 
-1. charger le fichier source ;
-2. normaliser les numeros de TVA ;
-3. dedoublonner sur la valeur normalisee ;
-4. appliquer la validation structurelle ;
-5. exclure des appels VIES les numeros structurellement rejetes ;
-6. appeler VIES uniquement pour les numeros candidats ;
-7. stocker le verdict en ligne, son origine et sa date ;
-8. produire un rapport de reconciliation.
+L'exploration initiale est dans [data/exploration.ipynb](data/exploration.ipynb).
 
-Le schema PostgreSQL doit conserver separement :
+Fichier source principal :
 
-- la valeur brute recue ;
-- la valeur normalisee ;
-- le pays declare ;
-- le verdict structurel ;
-- le motif structurel ;
-- le verdict VIES ;
-- la date de verification ;
-- la reponse ou le motif d'indetermination.
-
-Un rechargement ne doit pas dupliquer les lignes.
-
-## API attendue
-
-L'API REST devra permettre a la facturation de verifier un numero avant emission hors taxe.
-
-Contrat minimal de reponse :
-
-```json
-{
-  "numero_tva": "FR27552032534",
-  "verdict": "valide",
-  "origine": "vies_frais",
-  "date_verification": "2026-09-09T12:00:00Z",
-  "fraicheur_jours": 0
-}
+```text
+data/numeros-tva-6a9dbf50da6b4741045153.csv
 ```
 
-L'origine doit distinguer au minimum :
+Source complementaire :
 
-- une reponse fraiche obtenue depuis VIES ;
-- une valeur deja connue en base ;
-- une impossibilite de conclure.
+```text
+data/code-eu.csv
+```
 
-La documentation OpenAPI devra etre disponible via FastAPI.
+Ce fichier liste les Etats membres de l'Union europeenne et leurs codes ISO. Il sert de referentiel local pour distinguer les pays attendus, les pays hors UE et les codes manifestement invalides. Il provient d'une extraction de la page Wikipedia [Modele:Etats UE](https://fr.wikipedia.org/wiki/Mod%C3%A8le:%C3%89tats_UE), realisee le 09/09/2026.
 
-## Rapport attendu
+Constats actuels :
 
-Le rapport de reconciliation doit pouvoir etre regenere par une commande et contenir :
+- 10 000 lignes ;
+- colonnes : `id`, `raison_sociale`, `pays_declare`, `numero_tva`, `date_saisie`, `source_saisie` ;
+- 9 610 numeros bruts distincts ;
+- 9 304 numeros distincts apres normalisation simple ;
+- 119 valeurs vides ou assimilees vides ;
+- 1 861 lignes avec des caracteres de saisie parasites ;
+- pays attendus dans le jeu : `FR`, `DK`, `BE`, `LU`, `SE`, `PT`, `NL`, `IT`, `PL`, `FI` ;
+- pays/code hors perimetre a traiter explicitement : `ZZ`, `QQ`, `GB`, `UK`, `XX`.
 
-- le nombre de numeros valides ;
-- le nombre de numeros invalides ;
-- le nombre de numeros indetermines ;
-- les motifs de rejet structurel ;
-- les doublons detectes ;
-- la reduction chiffree du nombre d'appels VIES par rapport aux 10 000 lignes initiales.
+Cette analyse sert a justifier la reduction des appels VIES : normaliser, dedoublonner et rejeter les cas structurellement impossibles avant tout appel reseau.
 
-## Etat d'avancement
+## Qualite et robustesse
 
-Realise :
+Points a preparer pendant le developpement :
 
-- depot initialise ;
-- donnees CSV et Excel presentes ;
-- exploration initiale dans `data/exploration.ipynb` ;
-- configuration PostgreSQL via Docker Compose alignee sur le kit du brief ;
-- dependances Python declarees dans `pyproject.toml`.
+- chargement idempotent : relancer l'import ne doit pas dupliquer les lignes ;
+- separation claire entre valeur brute, valeur normalisee, verdict structurel et verdict VIES ;
+- trois verdicts metier : `valide`, `invalide`, `indetermine` ;
+- indisponibilite VIES stockee comme indeterminee, jamais comme invalide ;
+- campagne VIES reprenable apres interruption ;
+- mode echantillon parametrable ;
+- temporisation entre appels VIES ;
+- logs exploitables ;
+- tests sur la normalisation, les motifs de rejet, la reprise et le contrat API.
 
-A implementer :
+## Etat du depot
 
-- module de normalisation et validation structurelle ;
-- schema SQL et chargement idempotent en PostgreSQL ;
+Deja present :
+
+- donnees CSV et Excel dans `data/` ;
+- extraction des codes pays UE dans `data/code-eu.csv` ;
+- notebook d'exploration initiale ;
+- configuration PostgreSQL via `docker-compose.yml` ;
+- configuration d'environnement dans `.env.example` ;
+- base de projet Python avec `pyproject.toml`.
+
+A venir :
+
+- pipeline de chargement PostgreSQL ;
+- validation structurelle ;
 - client VIES ;
-- campagne de verification avec mode echantillon, temporisation, logs et reprise ;
 - API FastAPI ;
 - rapport de reconciliation reproductible ;
 - note d'architecture ;
 - journal de bord.
-
-## Auteur
-
-Christian Proisy.
