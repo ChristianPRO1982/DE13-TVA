@@ -75,6 +75,106 @@ def test_run_vies_campaign_counts_and_sleeps(monkeypatch):
     assert sleeps == [0.5, 0.5]
     assert [origin for _, origin in saved] == ["campaign", "campaign", "campaign"]
     assert client.calls[0] == ("FR11111111111", 2.0)
+    assert "Batch 1: 3 candidat(s) chargé(s)" in summary.lines[1]
+
+
+def test_run_vies_campaign_fetches_successive_batches(monkeypatch):
+    fetch_limits = []
+    batches = [
+        [
+            {"numero_tva_nettoye": "FR11111111111"},
+            {"numero_tva_nettoye": "FR22222222222"},
+        ],
+        [{"numero_tva_nettoye": "FR33333333333"}],
+        [],
+    ]
+
+    def fake_fetch(conn, **kwargs):
+        fetch_limits.append(kwargs["limit"])
+        return batches.pop(0)
+
+    saved = []
+    progress_lines = []
+    monkeypatch.setattr(campaign, "fetch_vies_candidates_for_verification", fake_fetch)
+    monkeypatch.setattr(
+        campaign,
+        "upsert_vies_verification",
+        lambda conn, result, origin: saved.append((result, origin)),
+    )
+    client = FakeClient(
+        [
+            verification("FR11111111111", VALID_VIES),
+            verification("FR22222222222", VALID_VIES),
+            verification("FR33333333333", INVALID_VIES),
+        ]
+    )
+
+    summary = run_vies_campaign(
+        object(),
+        client=client,
+        sample_size=None,
+        limit=None,
+        delay=0,
+        timeout=1.0,
+        force_refresh=False,
+        refresh_days=None,
+        batch_size=2,
+        progress=progress_lines.append,
+    )
+
+    assert fetch_limits == [2, 2, 2]
+    assert summary.selected == 3
+    assert summary.processed == 3
+    assert len(saved) == 3
+    assert progress_lines[0] == "Début campagne VIES"
+    assert any(
+        line.startswith("Batch 2: 1 candidat(s) chargé(s)")
+        for line in progress_lines
+    )
+
+
+def test_run_vies_campaign_force_refresh_uses_single_selection(monkeypatch):
+    calls = []
+
+    def fake_fetch(conn, **kwargs):
+        calls.append(kwargs)
+        return [{"numero_tva_nettoye": "FR11111111111"}]
+
+    monkeypatch.setattr(campaign, "fetch_vies_candidates_for_verification", fake_fetch)
+    monkeypatch.setattr(campaign, "upsert_vies_verification", lambda *args, **kwargs: None)
+
+    summary = run_vies_campaign(
+        object(),
+        client=FakeClient([verification("FR11111111111", VALID_VIES)]),
+        sample_size=None,
+        limit=None,
+        delay=0,
+        timeout=1.0,
+        force_refresh=True,
+        refresh_days=None,
+        batch_size=100,
+    )
+
+    assert len(calls) == 1
+    assert calls[0]["force_refresh"] is True
+    assert summary.processed == 1
+
+
+def test_run_vies_campaign_rejects_empty_batch_size():
+    import pytest
+
+    with pytest.raises(ValueError, match="batch_size"):
+        run_vies_campaign(
+            object(),
+            client=FakeClient([]),
+            sample_size=None,
+            limit=None,
+            delay=0,
+            timeout=1.0,
+            force_refresh=False,
+            refresh_days=None,
+            batch_size=0,
+        )
 
 
 def test_run_vies_campaign_with_no_candidates(monkeypatch):

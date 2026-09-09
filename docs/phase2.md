@@ -69,13 +69,15 @@ Commandes :
 uv run python -m de13_tva.pipeline verify-vies --sample-size 200 --delay 1.0
 uv run python -m de13_tva.pipeline verify-vies --limit 50 --delay 1.0
 uv run python -m de13_tva.pipeline verify-vies --refresh-days 30
+uv run python -m de13_tva.pipeline verify-vies --batch-size 100 --delay 1.0
 ```
 
 Comportements attendus :
 
+- traitement par lots de 100 candidats par défaut ;
 - temporisation configurable entre les appels ;
-- journal lisible : numéro, rang, verdict, durée ;
-- commit après chaque réponse pour permettre la reprise ;
+- progression visible dans le terminal : batch, numéro, rang, verdict, durée ;
+- sauvegarde en base après chaque réponse pour permettre la reprise ;
 - pas de rappel par défaut si une tentative existe déjà ;
 - rafraîchissement possible avec `--refresh-days` ou `--force-refresh`.
 

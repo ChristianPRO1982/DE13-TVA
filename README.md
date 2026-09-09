@@ -83,7 +83,7 @@ Paramètres DBeaver :
 - user : `meridian`
 - password : `meridian`
 
-Commandes phase 1 :
+### Commandes phase 1
 
 ```bash
 uv run python -m de13_tva.pipeline import-data
@@ -97,7 +97,7 @@ Chaque commande produit aussi un fichier dans `reports/phase_1/` :
 - `structural-report.txt` ;
 - `a_reviser.csv`.
 
-Commandes phase 2 :
+### Commandes phase 2
 
 ```bash
 uv run python -m de13_tva.pipeline verify-vies --sample-size 200 --delay 1.0
@@ -105,10 +105,18 @@ uv run python -m de13_tva.pipeline reconciliation-report
 uv run python -m de13_tva.pipeline export-phase2-human-review
 ```
 
-Ces commandes supposent que PostgreSQL tourne et que `import-data` a déjà été exécutée. `verify-vies` effectue de vrais appels réseau au service VIES ; pour une démonstration rapide, utiliser un petit échantillon :
+Ces commandes supposent que PostgreSQL tourne et que `import-data` a déjà été exécutée. `verify-vies` effectue de vrais appels réseau au service VIES. La campagne affiche sa progression dans le terminal et traite les candidats par lots de 100 par défaut. Chaque résultat est sauvegardé en base dans `vies_attempts`, et les verdicts exploitables sont aussi stockés dans `vies_verifications`, ce qui permet de relancer la commande sans rejouer les numéros déjà traités.
+
+Pour une démonstration rapide, utiliser un petit échantillon :
 
 ```bash
 uv run python -m de13_tva.pipeline verify-vies --sample-size 3 --delay 0
+```
+
+Taille de lot personnalisée :
+
+```bash
+uv run python -m de13_tva.pipeline verify-vies --batch-size 100 --delay 1.0
 ```
 
 Déroulé complet pour générer les rapports de phase 2 :
@@ -229,7 +237,7 @@ Points couverts :
 - campagne VIES reprenable après interruption ;
 - mode échantillon paramétrable ;
 - temporisation entre appels VIES ;
-- logs exploitables ;
+- progression terminale de la campagne VIES ;
 - API avec origine et fraîcheur du verdict ;
 - rapport de réconciliation consolidé par ligne source ;
 - séparation entre revue humaine, numéros uniques en attente de VIES et lignes source concernées ;
@@ -245,7 +253,7 @@ uv run ruff check .
 
 Résultat :
 
-- tests : 90 tests passés ;
+- tests : 93 tests passés ;
 - couverture globale : 100 % ;
 - Ruff : aucun problème détecté.
 

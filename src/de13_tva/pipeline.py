@@ -78,6 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify_parser = subparsers.add_parser("verify-vies")
     verify_parser.add_argument("--sample-size", type=int)
     verify_parser.add_argument("--limit", type=int)
+    verify_parser.add_argument("--batch-size", type=int, default=100)
     verify_parser.add_argument("--delay", type=float, default=1.0)
     verify_parser.add_argument(
         "--timeout", type=float, default=DEFAULT_VIES_TIMEOUT_SECONDS
@@ -114,6 +115,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     demo_parser = subparsers.add_parser("demo-run")
     demo_parser.add_argument("--sample-size", type=int, default=3)
+    demo_parser.add_argument("--batch-size", type=int, default=100)
     demo_parser.add_argument("--delay", type=float, default=0.0)
     demo_parser.add_argument(
         "--timeout", type=float, default=DEFAULT_VIES_TIMEOUT_SECONDS
@@ -168,6 +170,8 @@ def verify_vies(args: argparse.Namespace) -> None:
             timeout=args.timeout,
             force_refresh=args.force_refresh,
             refresh_days=args.refresh_days,
+            batch_size=args.batch_size,
+            progress=print,
         )
     content = format_verify_report(summary)
     write_text_report(content, args.report_output)
@@ -215,6 +219,8 @@ def demo_run(args: argparse.Namespace) -> None:
                 timeout=args.timeout,
                 force_refresh=False,
                 refresh_days=None,
+                batch_size=args.batch_size,
+                progress=print,
             )
             write_text_report(
                 format_verify_report(verify_summary),
