@@ -4,7 +4,7 @@ import psycopg
 
 from de13_tva import database, pipeline
 from de13_tva.importer import VatRecord
-from de13_tva.vies import ViesVerification
+from de13_tva.vies import INDETERMINATE_VIES, ViesVerification
 
 
 class FakeDescription:
@@ -88,6 +88,22 @@ def sample_vies_verification(payload=None) -> ViesVerification:
     )
 
 
+def sample_indeterminate_vies_verification() -> ViesVerification:
+    from datetime import UTC, datetime
+
+    return ViesVerification(
+        numero_tva_nettoye="FR27552032534",
+        country_code="FR",
+        vat_number="27552032534",
+        vies_verdict=INDETERMINATE_VIES,
+        checked_at=datetime(2026, 9, 9, tzinfo=UTC),
+        http_status=None,
+        response_time_ms=10,
+        response_payload=None,
+        error_message="timeout",
+    )
+
+
 def test_connect_uses_database_config(monkeypatch):
     calls = []
     monkeypatch.setattr(
@@ -109,6 +125,8 @@ def test_ensure_schema_executes_schema_and_commits():
 
     assert "CREATE TABLE IF NOT EXISTS vat_records" in conn.cursor_obj.queries[0]
     assert "CREATE TABLE IF NOT EXISTS vies_attempts" in conn.cursor_obj.queries[0]
+    assert "SELECT" in conn.cursor_obj.queries[0]
+    assert "DELETE FROM vies_verifications" in conn.cursor_obj.queries[0]
     assert conn.commits == 1
 
 
@@ -182,7 +200,10 @@ def test_fetch_vies_candidates_for_verification_filters_stale():
     )
 
     assert "refresh_days" in conn.cursor_obj.params[0]
-    assert "checked_at < now()" in conn.cursor_obj.queries[0]
+    assert (
+        "coalesce(latest_attempt.checked_at, vv.checked_at)"
+        in conn.cursor_obj.queries[0]
+    )
 
 
 def test_fetch_vies_candidates_for_verification_force_refresh_has_no_filter():
@@ -197,7 +218,8 @@ def test_fetch_vies_candidates_for_verification_force_refresh_has_no_filter():
         force_refresh=True,
     )
 
-    assert "WHERE" not in conn.cursor_obj.queries[0]
+    assert "WHERE va.numero_tva_nettoye" in conn.cursor_obj.queries[0]
+    assert "WHERE\n" not in conn.cursor_obj.queries[0]
     assert conn.cursor_obj.params[0] == {}
 
 
@@ -222,6 +244,20 @@ def test_upsert_vies_verification_with_payload_and_without_payload():
     assert conn.cursor_obj.params[0]["response_payload"] is not None
     assert conn.cursor_obj.params[2]["response_payload"] is None
     assert conn.commits == 2
+
+
+def test_upsert_vies_verification_does_not_store_indeterminate_as_current():
+    conn = FakeConnection()
+
+    database.upsert_vies_verification(
+        conn,
+        sample_indeterminate_vies_verification(),
+        origin="api",
+    )
+
+    assert len(conn.cursor_obj.queries) == 1
+    assert "INSERT INTO vies_attempts" in conn.cursor_obj.queries[0]
+    assert conn.commits == 1
 
 
 def test_insert_vies_attempt_commits_without_upserting_current_verdict():
@@ -316,6 +352,7 @@ def test_fetch_reconciliation_report():
         (6,),
         (2,),
         (3,),
+        (3,),
         (4,),
         (5,),
         (7,),
@@ -324,6 +361,7 @@ def test_fetch_reconciliation_report():
     conn.cursor_obj.fetchall_results = [
         [("ok_structure", 6)],
         [("indetermine", 1), ("valide", 1)],
+        [("indetermine", 2), ("valide", 1)],
         [("indetermine", 8), ("invalide", 1), ("valide", 1)],
     ]
 
@@ -331,6 +369,7 @@ def test_fetch_reconciliation_report():
 
     assert report["total_rows"] == 10
     assert report["vies_verifications_total"] == 2
+    assert report["vies_attempts_total"] == 3
     assert report["by_final_verdict"] == [
         ("indetermine", 8),
         ("invalide", 1),
@@ -370,7 +409,7 @@ def test_pipeline_import_data(monkeypatch, tmp_path: Path, capsys):
     )
 
     assert calls == [conn]
-    assert "Lignes importees ou mises a jour: 1" in capsys.readouterr().out
+    assert "Lignes importées ou mises à jour: 1" in capsys.readouterr().out
     assert output.exists()
 
 
@@ -385,7 +424,7 @@ def test_pipeline_structural_report(monkeypatch, tmp_path: Path, capsys):
 
     assert pipeline.main(["structural-report", "--output", str(output)]) == 0
 
-    assert f"Rapport ecrit dans {output}" in capsys.readouterr().out
+    assert f"Rapport écrit dans {output}" in capsys.readouterr().out
     assert output.read_text(encoding="utf-8") == "report\n"
 
 
@@ -404,7 +443,7 @@ def test_pipeline_export_human_review(monkeypatch, tmp_path: Path, capsys):
 
     assert pipeline.main(["export-human-review", "--output", str(output)]) == 0
 
-    assert f"1 lignes exportees vers {output}" in capsys.readouterr().out
+    assert f"1 lignes exportées vers {output}" in capsys.readouterr().out
 
 
 def test_pipeline_verify_vies(monkeypatch, tmp_path: Path, capsys):
@@ -441,7 +480,7 @@ def test_pipeline_verify_vies(monkeypatch, tmp_path: Path, capsys):
         == 0
     )
 
-    assert "Rapport verification VIES phase 2" in capsys.readouterr().out
+    assert "Rapport vérification VIES phase 2" in capsys.readouterr().out
     assert output.exists()
 
 
@@ -480,8 +519,8 @@ def test_pipeline_reconciliation_report(monkeypatch, tmp_path: Path, capsys):
     )
 
     captured = capsys.readouterr().out
-    assert "Rapport ecrit" in captured
-    assert f"1 lignes exportees vers {details}" in captured
+    assert "Rapport écrit" in captured
+    assert f"1 lignes exportées vers {details}" in captured
     assert output.read_text(encoding="utf-8") == "reconciliation\n"
 
 
@@ -503,7 +542,7 @@ def test_pipeline_export_phase2_human_review(monkeypatch, tmp_path: Path, capsys
 
     assert pipeline.main(["export-phase2-human-review", "--output", str(output)]) == 0
 
-    assert f"1 lignes exportees vers {output}" in capsys.readouterr().out
+    assert f"1 lignes exportées vers {output}" in capsys.readouterr().out
 
 
 def test_pipeline_demo_run(monkeypatch, tmp_path: Path, capsys):
@@ -540,12 +579,14 @@ def test_pipeline_demo_run(monkeypatch, tmp_path: Path, capsys):
             "vies_candidates": 1,
             "vies_calls_avoided": 0,
             "vies_verifications_total": 0,
+            "vies_attempts_total": 0,
             "duplicate_numbers": 0,
             "phase1_human_review": 0,
             "phase2_human_review": 0,
             "pending_vies": 1,
             "pending_vies_unique": 1,
             "by_vies_verdict": [],
+            "by_attempt_verdict": [],
             "by_final_verdict": [("indetermine", 1)],
             "by_reason": [("ok_structure", 1)],
         },
@@ -619,12 +660,14 @@ def test_pipeline_demo_run_can_skip_vies(monkeypatch, tmp_path: Path, capsys):
             "vies_candidates": 1,
             "vies_calls_avoided": 0,
             "vies_verifications_total": 0,
+            "vies_attempts_total": 0,
             "duplicate_numbers": 0,
             "phase1_human_review": 0,
             "phase2_human_review": 0,
             "pending_vies": 1,
             "pending_vies_unique": 1,
             "by_vies_verdict": [],
+            "by_attempt_verdict": [],
             "by_final_verdict": [("indetermine", 1)],
             "by_reason": [("ok_structure", 1)],
         },

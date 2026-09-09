@@ -175,7 +175,7 @@ Le rapport doit contenir :
 - total lignes source ;
 - total numeros nettoyes uniques ;
 - total candidats VIES ;
-- appels VIES evites ;
+- appels VIES évités ;
 - valides ;
 - invalides ;
 - indetermines ;

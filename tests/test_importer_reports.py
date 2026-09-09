@@ -119,7 +119,7 @@ def test_format_import_report():
     formatted = format_import_report(10000)
 
     assert "Rapport import phase 1" in formatted
-    assert "Lignes importees ou mises a jour: 10000" in formatted
+    assert "Lignes importées ou mises à jour: 10000" in formatted
     assert "Idempotence:" in formatted
 
 
@@ -135,7 +135,7 @@ def test_format_structural_report():
     formatted = format_structural_report(report)
 
     assert "Total lignes source: 10" in formatted
-    assert "Appels VIES evites: 4" in formatted
+    assert "Appels VIES évités: 4" in formatted
     assert "- ok_structure: 6" in formatted
 
 
@@ -153,7 +153,7 @@ def test_format_verify_report():
         )
     )
 
-    assert "Rapport verification VIES phase 2" in formatted
+    assert "Rapport vérification VIES phase 2" in formatted
     assert "Valides: 1" in formatted
     assert "2/2 BE: invalide" in formatted
 
@@ -165,12 +165,14 @@ def test_format_reconciliation_report():
         "vies_candidates": 6,
         "vies_calls_avoided": 4,
         "vies_verifications_total": 3,
+        "vies_attempts_total": 4,
         "duplicate_numbers": 2,
         "phase1_human_review": 1,
         "phase2_human_review": 1,
         "pending_vies": 4,
         "pending_vies_unique": 3,
         "by_vies_verdict": [("valide", 2), ("indetermine", 1)],
+        "by_attempt_verdict": [("indetermine", 2), ("valide", 2)],
         "by_final_verdict": [("indetermine", 7), ("valide", 3)],
         "by_reason": [("ok_structure", 6), ("format_invalide", 4)],
     }
@@ -178,7 +180,8 @@ def test_format_reconciliation_report():
     formatted = format_reconciliation_report(report)
 
     assert "Rapport réconciliation phase 2" in formatted
-    assert "Vérifications VIES stockées: 3" in formatted
+    assert "Verdicts VIES courants stockés: 3" in formatted
+    assert "Tentatives VIES historisées: 4" in formatted
     assert "Numéros VIES uniques en attente: 3" in formatted
     assert "Lignes source en attente de VIES: 4" in formatted
     assert "Verdicts finaux par ligne source:" in formatted
@@ -193,12 +196,14 @@ def test_format_reconciliation_report_without_vies_verdicts():
         "vies_candidates": 1,
         "vies_calls_avoided": 0,
         "vies_verifications_total": 0,
+        "vies_attempts_total": 0,
         "duplicate_numbers": 0,
         "phase1_human_review": 0,
         "phase2_human_review": 0,
         "pending_vies": 1,
         "pending_vies_unique": 1,
         "by_vies_verdict": [],
+        "by_attempt_verdict": [],
         "by_final_verdict": [("indetermine", 1)],
         "by_reason": [("ok_structure", 1)],
     }

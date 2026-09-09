@@ -53,8 +53,8 @@ def format_import_report(imported: int) -> str:
     return "\n".join(
         [
             "Rapport import phase 1",
-            f"Lignes importees ou mises a jour: {imported}",
-            "Idempotence: source_id est la cle primaire, ON CONFLICT met a jour.",
+            f"Lignes importées ou mises à jour: {imported}",
+            "Idempotence: source_id est la clé primaire, ON CONFLICT met à jour.",
         ]
     )
 
@@ -63,11 +63,11 @@ def format_structural_report(report: dict[str, object]) -> str:
     lines = [
         "Rapport structurel phase 1",
         f"Total lignes source: {report['total_rows']}",
-        f"Numeros nettoyes uniques: {report['unique_cleaned']}",
+        f"Numéros nettoyés uniques: {report['unique_cleaned']}",
         f"Candidats VIES uniques: {report['vies_candidates']}",
-        f"Appels VIES evites: {report['vies_calls_avoided']}",
+        f"Appels VIES évités: {report['vies_calls_avoided']}",
         "",
-        "Repartition par motif:",
+        "Répartition par motif:",
     ]
     for reason, count in report["by_reason"]:
         lines.append(f"- {reason}: {count}")
@@ -77,12 +77,12 @@ def format_structural_report(report: dict[str, object]) -> str:
 def format_verify_report(summary: object) -> str:
     return "\n".join(
         [
-            "Rapport verification VIES phase 2",
-            f"Candidats selectionnes: {summary.selected}",
-            f"Verifications traitees: {summary.processed}",
+            "Rapport vérification VIES phase 2",
+            f"Candidats sélectionnés: {summary.selected}",
+            f"Vérifications traitées: {summary.processed}",
             f"Valides: {summary.valid}",
             f"Invalides: {summary.invalid}",
-            f"Indetermines: {summary.indeterminate}",
+            f"Indéterminés: {summary.indeterminate}",
             "",
             "Journal:",
             *summary.lines,
@@ -97,7 +97,8 @@ def format_reconciliation_report(report: dict[str, object]) -> str:
         f"Numéros nettoyés uniques: {report['unique_cleaned']}",
         f"Candidats VIES uniques: {report['vies_candidates']}",
         f"Appels VIES évités: {report['vies_calls_avoided']}",
-        f"Vérifications VIES stockées: {report['vies_verifications_total']}",
+        f"Verdicts VIES courants stockés: {report['vies_verifications_total']}",
+        f"Tentatives VIES historisées: {report['vies_attempts_total']}",
         f"Numéros VIES uniques en attente: {report['pending_vies_unique']}",
         f"Lignes source en attente de VIES: {report['pending_vies']}",
         f"Doublons par numéro nettoyé: {report['duplicate_numbers']}",
@@ -111,12 +112,17 @@ def format_reconciliation_report(report: dict[str, object]) -> str:
     lines.extend(
         [
             "",
-            "Verdicts VIES stockés:",
+            "Verdicts VIES courants:",
         ]
     )
     if not report["by_vies_verdict"]:
         lines.append("- aucun")
     for verdict, count in report["by_vies_verdict"]:
+        lines.append(f"- {verdict}: {count}")
+    lines.extend(["", "Tentatives VIES par verdict:"])
+    if not report["by_attempt_verdict"]:
+        lines.append("- aucune")
+    for verdict, count in report["by_attempt_verdict"]:
         lines.append(f"- {verdict}: {count}")
     lines.extend(["", "Motifs structurels:"])
     for reason, count in report["by_reason"]:

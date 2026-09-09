@@ -1,12 +1,12 @@
-Rapport verification VIES phase 2
-Candidats selectionnes: 3
-Verifications traitees: 3
+Rapport vérification VIES phase 2
+Candidats sélectionnés: 3
+Vérifications traitées: 3
 Valides: 0
 Invalides: 3
-Indetermines: 0
+Indéterminés: 0
 
 Journal:
-Candidats selectionnes: 3
+Candidats sélectionnés: 3
 1/3 DK73224645: invalide (120 ms)
 2/3 PT787327239: invalide (258 ms)
 3/3 LU71043234: invalide (175 ms)

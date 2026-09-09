@@ -42,7 +42,7 @@ def run_vies_campaign(
         refresh_days=refresh_days,
         force_refresh=force_refresh,
     )
-    lines = ["Debut campagne VIES"]
+    lines = ["Début campagne VIES"]
     counts = {VALID_VIES: 0, INVALID_VIES: 0, INDETERMINATE_VIES: 0}
 
     for index, candidate in enumerate(candidates, start=1):

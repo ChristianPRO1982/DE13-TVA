@@ -176,10 +176,13 @@ Résultat actuel de la phase 1 après import :
 
 Résultat actuel de la phase 2 après échantillon VIES de 3 numéros :
 
-- 3 vérifications VIES stockées ;
+- 3 verdicts VIES courants stockés ;
+- 3 tentatives VIES historisées ;
 - 3 invalides ;
 - 0 valide ;
 - 0 indéterminé ;
+- 7 108 numéros VIES uniques encore en attente ;
+- 7 446 lignes source encore en attente de VIES ;
 - rapport de réconciliation : `reports/phase_2/reconciliation-report.txt` ;
 - détail ligne par ligne : `reports/phase_2/reconciliation-details.csv` ;
 - export humain phase 2 : `reports/phase_2/a_reviser.csv`.

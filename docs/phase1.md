@@ -2,7 +2,7 @@
 
 Objectif pour Codex : construire le socle de donnees avant tout appel VIES.
 
-Cette phase doit produire une base PostgreSQL chargee avec les 10 000 lignes, les valeurs brutes conservees, les valeurs nettoyees/normalisees, le verdict structurel et son motif. Elle doit aussi chiffrer le nombre d'appels VIES evites.
+Cette phase doit produire une base PostgreSQL chargée avec les 10 000 lignes, les valeurs brutes conservées, les valeurs nettoyées/normalisées, le verdict structurel et son motif. Elle doit aussi chiffrer le nombre d'appels VIES évités.
 
 Brief source : `brief/brief.md`
 Exploration source : `data/exploration.ipynb`
@@ -175,6 +175,6 @@ La commande d'import doit etre idempotente : deux executions consecutives ne doi
 - Les pays hors UE et cas `GB`/`UK` sont identifies.
 - Chaque ligne a un verdict structurel et un motif.
 - Les doublons par numero nettoye sont detectes.
-- Le nombre d'appels VIES evites est chiffre.
+- Le nombre d'appels VIES évités est chiffré.
 - Une sortie des cas a reviser humainement est produite.
 - Les tests couvrent au minimum la normalisation, les pays invalides, les valeurs vides et l'idempotence du chargement.

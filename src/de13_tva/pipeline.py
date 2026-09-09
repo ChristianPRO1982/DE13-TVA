@@ -137,7 +137,7 @@ def import_data(args: argparse.Namespace) -> None:
     report = format_import_report(imported)
     write_text_report(report, args.report_output)
     print(report)
-    print(f"Rapport ecrit dans {args.report_output}")
+    print(f"Rapport écrit dans {args.report_output}")
 
 
 def structural_report(args: argparse.Namespace) -> None:
@@ -146,14 +146,14 @@ def structural_report(args: argparse.Namespace) -> None:
     content = format_structural_report(report)
     write_text_report(content, args.output)
     print(content)
-    print(f"Rapport ecrit dans {args.output}")
+    print(f"Rapport écrit dans {args.output}")
 
 
 def export_human_review(args: argparse.Namespace) -> None:
     with connect() as conn:
         rows = fetch_human_review_rows(conn)
     exported = export_human_review_csv(rows, args.output)
-    print(f"{exported} lignes exportees vers {args.output}")
+    print(f"{exported} lignes exportées vers {args.output}")
 
 
 def verify_vies(args: argparse.Namespace) -> None:
@@ -172,7 +172,7 @@ def verify_vies(args: argparse.Namespace) -> None:
     content = format_verify_report(summary)
     write_text_report(content, args.report_output)
     print(content)
-    print(f"Rapport ecrit dans {args.report_output}")
+    print(f"Rapport écrit dans {args.report_output}")
 
 
 def reconciliation_report(args: argparse.Namespace) -> None:
@@ -184,8 +184,8 @@ def reconciliation_report(args: argparse.Namespace) -> None:
     write_text_report(content, args.output)
     exported = export_reconciliation_details_csv(details, args.details_output)
     print(content)
-    print(f"Rapport ecrit dans {args.output}")
-    print(f"{exported} lignes exportees vers {args.details_output}")
+    print(f"Rapport écrit dans {args.output}")
+    print(f"{exported} lignes exportées vers {args.details_output}")
 
 
 def export_phase2_human_review(args: argparse.Namespace) -> None:
@@ -193,7 +193,7 @@ def export_phase2_human_review(args: argparse.Namespace) -> None:
         ensure_schema(conn)
         rows = fetch_phase2_human_review_rows(conn)
     exported = export_phase2_human_review_csv(rows, args.output)
-    print(f"{exported} lignes exportees vers {args.output}")
+    print(f"{exported} lignes exportées vers {args.output}")
 
 
 def demo_run(args: argparse.Namespace) -> None:
@@ -258,7 +258,7 @@ def demo_run(args: argparse.Namespace) -> None:
     )
     write_text_report(content, args.report_output)
     print(content)
-    print(f"Rapport ecrit dans {args.report_output}")
+    print(f"Rapport écrit dans {args.report_output}")
 
 
 if __name__ == "__main__":  # pragma: no cover

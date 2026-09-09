@@ -96,4 +96,4 @@ def test_run_vies_campaign_with_no_candidates(monkeypatch):
     )
 
     assert summary.selected == 0
-    assert summary.lines == ["Debut campagne VIES"]
+    assert summary.lines == ["Début campagne VIES"]
