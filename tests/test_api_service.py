@@ -34,6 +34,7 @@ def result(number: str, verdict: str, error: str | None = None) -> ViesVerificat
 def setup_api_service(monkeypatch, stored=None):
     reviews = []
     saved = []
+    attempts = []
     monkeypatch.setattr(api_service, "load_eu_country_codes", lambda path: EU_CODES)
     monkeypatch.setattr(
         api_service,
@@ -50,7 +51,12 @@ def setup_api_service(monkeypatch, stored=None):
         "upsert_vies_verification",
         lambda conn, verification, origin: saved.append((verification, origin)),
     )
-    return reviews, saved
+    monkeypatch.setattr(
+        api_service,
+        "insert_vies_attempt",
+        lambda conn, verification, origin: attempts.append((verification, origin)),
+    )
+    return reviews, saved, attempts
 
 
 def stored_verification(checked_at: datetime) -> dict[str, object]:
@@ -62,7 +68,7 @@ def stored_verification(checked_at: datetime) -> dict[str, object]:
 
 
 def test_api_structural_reject_records_human_review(monkeypatch):
-    reviews, _ = setup_api_service(monkeypatch)
+    reviews, _, _ = setup_api_service(monkeypatch)
     client = FakeClient(result("", VALID_VIES))
 
     response = api_service.verify_vat_for_api(
@@ -102,7 +108,7 @@ def test_api_returns_stored_fresh_without_calling_vies(monkeypatch):
 
 
 def test_api_calls_vies_for_missing_stored_value(monkeypatch):
-    _, saved = setup_api_service(monkeypatch)
+    _, saved, _ = setup_api_service(monkeypatch)
     client = FakeClient(result("FR27552032534", VALID_VIES))
 
     response = api_service.verify_vat_for_api(
@@ -139,7 +145,7 @@ def test_api_force_refresh_ignores_fresh_stored_value(monkeypatch):
 
 
 def test_api_returns_stale_stored_when_refresh_is_indeterminate(monkeypatch):
-    _, saved = setup_api_service(
+    _, saved, attempts = setup_api_service(
         monkeypatch, stored_verification(NOW - timedelta(days=40))
     )
     client = FakeClient(result("FR27552032534", INDETERMINATE_VIES, "timeout"))
@@ -156,12 +162,13 @@ def test_api_returns_stale_stored_when_refresh_is_indeterminate(monkeypatch):
 
     assert response["origin"] == "stored_stale"
     assert response["freshness_days"] == 40
-    assert saved[0][0].vies_verdict == INDETERMINATE_VIES
-    assert saved[0][1] == "api"
+    assert saved == []
+    assert attempts[0][0].vies_verdict == INDETERMINATE_VIES
+    assert attempts[0][1] == "api"
 
 
 def test_api_unavailable_without_stored_value_records_review(monkeypatch):
-    reviews, saved = setup_api_service(monkeypatch)
+    reviews, saved, attempts = setup_api_service(monkeypatch)
     client = FakeClient(result("FR27552032534", INDETERMINATE_VIES, "timeout"))
 
     response = api_service.verify_vat_for_api(
@@ -179,12 +186,13 @@ def test_api_unavailable_without_stored_value_records_review(monkeypatch):
     assert reviews[0]["review_reason"] == "timeout"
     assert saved[0][0].vies_verdict == INDETERMINATE_VIES
     assert saved[0][1] == "api"
+    assert attempts == []
 
 
 def test_api_ignores_fresh_indeterminate_stored_value(monkeypatch):
     stored = stored_verification(NOW)
     stored["vies_verdict"] = INDETERMINATE_VIES
-    _, saved = setup_api_service(monkeypatch, stored)
+    _, saved, attempts = setup_api_service(monkeypatch, stored)
     client = FakeClient(result("FR27552032534", VALID_VIES))
 
     response = api_service.verify_vat_for_api(
@@ -199,3 +207,4 @@ def test_api_ignores_fresh_indeterminate_stored_value(monkeypatch):
 
     assert response["origin"] == "vies_fresh"
     assert saved[0][0].vies_verdict == VALID_VIES
+    assert attempts == []

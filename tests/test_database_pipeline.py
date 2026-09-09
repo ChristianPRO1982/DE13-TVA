@@ -108,6 +108,7 @@ def test_ensure_schema_executes_schema_and_commits():
     database.ensure_schema(conn)
 
     assert "CREATE TABLE IF NOT EXISTS vat_records" in conn.cursor_obj.queries[0]
+    assert "CREATE TABLE IF NOT EXISTS vies_attempts" in conn.cursor_obj.queries[0]
     assert conn.commits == 1
 
 
@@ -214,11 +215,29 @@ def test_upsert_vies_verification_with_payload_and_without_payload():
         origin="campaign",
     )
 
-    assert len(conn.cursor_obj.queries) == 2
+    assert len(conn.cursor_obj.queries) == 4
+    assert "INSERT INTO vies_attempts" in conn.cursor_obj.queries[0]
+    assert "INSERT INTO vies_verifications" in conn.cursor_obj.queries[1]
     assert conn.cursor_obj.params[0]["origin"] == "api"
     assert conn.cursor_obj.params[0]["response_payload"] is not None
-    assert conn.cursor_obj.params[1]["response_payload"] is None
+    assert conn.cursor_obj.params[2]["response_payload"] is None
     assert conn.commits == 2
+
+
+def test_insert_vies_attempt_commits_without_upserting_current_verdict():
+    conn = FakeConnection()
+
+    database.insert_vies_attempt(
+        conn,
+        sample_vies_verification({"isValid": True}),
+        origin="api",
+    )
+
+    assert len(conn.cursor_obj.queries) == 1
+    assert "INSERT INTO vies_attempts" in conn.cursor_obj.queries[0]
+    assert "INSERT INTO vies_verifications" not in conn.cursor_obj.queries[0]
+    assert conn.cursor_obj.params[0]["origin"] == "api"
+    assert conn.commits == 1
 
 
 def test_fetch_stored_vies_verification_returns_none():
@@ -291,7 +310,17 @@ def test_fetch_reconciliation_details():
 
 def test_fetch_reconciliation_report():
     conn = FakeConnection()
-    conn.cursor_obj.fetchone_results = [(10,), (8,), (6,), (2,), (3,), (4,), (5,)]
+    conn.cursor_obj.fetchone_results = [
+        (10,),
+        (8,),
+        (6,),
+        (2,),
+        (3,),
+        (4,),
+        (5,),
+        (7,),
+        (6,),
+    ]
     conn.cursor_obj.fetchall_results = [
         [("ok_structure", 6)],
         [("indetermine", 1), ("valide", 1)],
@@ -310,6 +339,8 @@ def test_fetch_reconciliation_report():
     assert report["duplicate_numbers"] == 3
     assert report["phase1_human_review"] == 4
     assert report["phase2_human_review"] == 5
+    assert report["pending_vies"] == 7
+    assert report["pending_vies_unique"] == 6
 
 
 def test_pipeline_import_data(monkeypatch, tmp_path: Path, capsys):
@@ -512,6 +543,8 @@ def test_pipeline_demo_run(monkeypatch, tmp_path: Path, capsys):
             "duplicate_numbers": 0,
             "phase1_human_review": 0,
             "phase2_human_review": 0,
+            "pending_vies": 1,
+            "pending_vies_unique": 1,
             "by_vies_verdict": [],
             "by_final_verdict": [("indetermine", 1)],
             "by_reason": [("ok_structure", 1)],
@@ -589,6 +622,8 @@ def test_pipeline_demo_run_can_skip_vies(monkeypatch, tmp_path: Path, capsys):
             "duplicate_numbers": 0,
             "phase1_human_review": 0,
             "phase2_human_review": 0,
+            "pending_vies": 1,
+            "pending_vies_unique": 1,
             "by_vies_verdict": [],
             "by_final_verdict": [("indetermine", 1)],
             "by_reason": [("ok_structure", 1)],

@@ -93,6 +93,7 @@ def test_export_reconciliation_details_csv(tmp_path: Path):
             "checked_at": "2026-09-09T12:00:00Z",
             "freshness_days": 0,
             "needs_human_review": False,
+            "needs_vies_verification": False,
             "review_reason": None,
         }
     ]
@@ -167,6 +168,8 @@ def test_format_reconciliation_report():
         "duplicate_numbers": 2,
         "phase1_human_review": 1,
         "phase2_human_review": 1,
+        "pending_vies": 4,
+        "pending_vies_unique": 3,
         "by_vies_verdict": [("valide", 2), ("indetermine", 1)],
         "by_final_verdict": [("indetermine", 7), ("valide", 3)],
         "by_reason": [("ok_structure", 6), ("format_invalide", 4)],
@@ -176,6 +179,8 @@ def test_format_reconciliation_report():
 
     assert "Rapport réconciliation phase 2" in formatted
     assert "Vérifications VIES stockées: 3" in formatted
+    assert "Numéros VIES uniques en attente: 3" in formatted
+    assert "Lignes source en attente de VIES: 4" in formatted
     assert "Verdicts finaux par ligne source:" in formatted
     assert "- valide: 3" in formatted
     assert "- indetermine: 1" in formatted
@@ -191,6 +196,8 @@ def test_format_reconciliation_report_without_vies_verdicts():
         "duplicate_numbers": 0,
         "phase1_human_review": 0,
         "phase2_human_review": 0,
+        "pending_vies": 1,
+        "pending_vies_unique": 1,
         "by_vies_verdict": [],
         "by_final_verdict": [("indetermine", 1)],
         "by_reason": [("ok_structure", 1)],

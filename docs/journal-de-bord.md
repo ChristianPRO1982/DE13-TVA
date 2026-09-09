@@ -45,6 +45,8 @@ Un audit de conformité au brief a fait ressortir plusieurs écarts :
 - le rapport de réconciliation devait consolider les verdicts par ligne source, pas seulement par vérification VIES stockée ;
 - le client VIES devait résister à un JSON valide mais non objet ;
 - l'API devait stocker aussi les tentatives VIES indéterminées ;
+- un verdict fiable ne devait pas être écrasé par une indisponibilité ultérieure ;
+- les lignes en attente d'appel VIES devaient être séparées des cas à réviser humainement ;
 - les livrables documentaires devaient être présents ;
 - une commande unique de démonstration devait être documentée ;
 - la limite de validation par formats devait être explicitée.

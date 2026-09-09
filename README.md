@@ -207,7 +207,9 @@ Points couverts :
 - temporisation entre appels VIES ;
 - logs exploitables ;
 - API avec origine et fraîcheur du verdict ;
-- rapport de réconciliation consolidé par ligne source.
+- rapport de réconciliation consolidé par ligne source ;
+- séparation entre revue humaine, numéros uniques en attente de VIES et lignes source concernées ;
+- historique des tentatives VIES indéterminées sans écraser le dernier verdict exploitable.
 
 Limite assumée : le module officiel de validation structurelle avec clés de contrôle mentionné dans le brief n'est pas présent dans le dépôt. La validation actuelle repose donc sur des formats par pays, isolés dans le code pour pouvoir être remplacés si ce module est fourni.
 

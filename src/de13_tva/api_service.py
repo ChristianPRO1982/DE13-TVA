@@ -8,6 +8,7 @@ from typing import Any
 from de13_tva.countries import load_eu_country_codes
 from de13_tva.database import (
     fetch_stored_vies_verification,
+    insert_vies_attempt,
     record_human_review_item,
     upsert_vies_verification,
 )
@@ -57,10 +58,10 @@ def verify_vat_for_api(
         )
 
     stored = fetch_stored_vies_verification(conn, normalized)
+    stored_is_usable = bool(stored and stored["vies_verdict"] != INDETERMINATE_VIES)
     if (
-        stored
+        stored_is_usable
         and not force_refresh
-        and stored["vies_verdict"] != INDETERMINATE_VIES
         and is_fresh(stored["checked_at"], max_age_days=max_age_days, now=checked_now)
     ):
         return _response_from_stored(
@@ -68,8 +69,8 @@ def verify_vat_for_api(
         )
 
     result = vies_client.verify(normalized, timeout=timeout)
-    upsert_vies_verification(conn, result, origin="api")
     if result.vies_verdict != INDETERMINATE_VIES:
+        upsert_vies_verification(conn, result, origin="api")
         return _response(
             numero,
             normalized,
@@ -81,11 +82,13 @@ def verify_vat_for_api(
             None,
         )
 
-    if stored:
+    if stored_is_usable:
+        insert_vies_attempt(conn, result, origin="api")
         return _response_from_stored(
             numero, normalized, stored, "stored_stale", checked_now
         )
 
+    upsert_vies_verification(conn, result, origin="api")
     record_human_review_item(
         conn,
         source="api",

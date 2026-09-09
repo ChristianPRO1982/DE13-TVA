@@ -38,6 +38,7 @@ RECONCILIATION_DETAIL_COLUMNS = [
     "checked_at",
     "freshness_days",
     "needs_human_review",
+    "needs_vies_verification",
     "review_reason",
 ]
 
@@ -97,6 +98,8 @@ def format_reconciliation_report(report: dict[str, object]) -> str:
         f"Candidats VIES uniques: {report['vies_candidates']}",
         f"Appels VIES évités: {report['vies_calls_avoided']}",
         f"Vérifications VIES stockées: {report['vies_verifications_total']}",
+        f"Numéros VIES uniques en attente: {report['pending_vies_unique']}",
+        f"Lignes source en attente de VIES: {report['pending_vies']}",
         f"Doublons par numéro nettoyé: {report['duplicate_numbers']}",
         f"Cas à réviser phase 1: {report['phase1_human_review']}",
         f"Cas à réviser phase 2: {report['phase2_human_review']}",
@@ -127,7 +130,11 @@ def export_reconciliation_details_csv(
 ) -> int:
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with output_file.open("w", newline="", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=RECONCILIATION_DETAIL_COLUMNS)
+        writer = csv.DictWriter(
+            csv_file,
+            fieldnames=RECONCILIATION_DETAIL_COLUMNS,
+            lineterminator="\n",
+        )
         writer.writeheader()
         writer.writerows(rows)
     return len(rows)
@@ -161,7 +168,11 @@ def format_demo_report(
 def export_human_review_csv(rows: list[dict[str, object]], output_file: Path) -> int:
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with output_file.open("w", newline="", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=HUMAN_REVIEW_COLUMNS)
+        writer = csv.DictWriter(
+            csv_file,
+            fieldnames=HUMAN_REVIEW_COLUMNS,
+            lineterminator="\n",
+        )
         writer.writeheader()
         writer.writerows(rows)
     return len(rows)
@@ -173,7 +184,11 @@ def export_phase2_human_review_csv(
 ) -> int:
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with output_file.open("w", newline="", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=PHASE2_HUMAN_REVIEW_COLUMNS)
+        writer = csv.DictWriter(
+            csv_file,
+            fieldnames=PHASE2_HUMAN_REVIEW_COLUMNS,
+            lineterminator="\n",
+        )
         writer.writeheader()
         writer.writerows(rows)
     return len(rows)
