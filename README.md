@@ -66,11 +66,7 @@ Commandes phase 1 :
 
 ```bash
 uv run python -m de13_tva.pipeline import-data
-```
-```bash
 uv run python -m de13_tva.pipeline structural-report
-```
-```bash
 uv run python -m de13_tva.pipeline export-human-review
 ```
 
@@ -80,10 +76,45 @@ Chaque commande produit aussi un fichier dans `reports/phase_1/` :
 - `structural-report.txt` ;
 - `a_reviser.csv`.
 
+Commandes phase 2 :
+
+```bash
+uv run python -m de13_tva.pipeline verify-vies --sample-size 200 --delay 1.0
+uv run python -m de13_tva.pipeline reconciliation-report
+uv run python -m de13_tva.pipeline export-phase2-human-review
+```
+
+Ces commandes supposent que PostgreSQL tourne et que `import-data` a deja ete execute. `verify-vies` effectue de vrais appels reseau au service VIES ; pour une demonstration rapide, utiliser un petit echantillon :
+
+```bash
+uv run python -m de13_tva.pipeline verify-vies --sample-size 3 --delay 0
+```
+
+Chaque commande produit aussi un fichier dans `reports/phase_2/` :
+
+- `verify-vies.txt` ;
+- `reconciliation-report.txt` ;
+- `a_reviser.csv`.
+
+Lancer l'API :
+
+```bash
+uv run uvicorn de13_tva.api:app --reload
+```
+
+Endpoint principal :
+
+```bash
+curl --get "http://localhost:8000/vat" --data-urlencode "numero=FR 27 552 032 534"
+```
+
+La documentation OpenAPI est disponible sur `/docs` et `/openapi.json`.
+
 Commandes qualite :
 
 ```bash
-uv run pytest
+uv run coverage run -m pytest
+uv run coverage report -m
 uv run ruff check .
 ```
 
@@ -132,22 +163,38 @@ Resultat actuel de la phase 1 apres import :
 - repartition structurelle : `ok_structure` (7 450), `format_invalide` (1 770), `pays_hors_referentiel_ue` (311), `numero_tva_absent` (260), `pays_hors_perimetre_vies` (208), `prefixe_pays_incoherent` (1).
 - sortie humaine : `reports/phase_1/a_reviser.csv`, 2 550 lignes.
 
+Resultat actuel de la phase 2 apres echantillon VIES de 3 numeros :
+
+- 3 verifications VIES stockees ;
+- 3 invalides ;
+- 0 valide ;
+- 0 indetermine ;
+- rapport de reconciliation : `reports/phase_2/reconciliation-report.txt` ;
+- export humain phase 2 : `reports/phase_2/a_reviser.csv`.
+
+## Sources
+
+- Brief projet : [brief/brief.md](brief/brief.md)
+- VIES : https://ec.europa.eu/taxation_customs/vies/
+- Formats des numeros de TVA intracommunautaire : https://taxation-customs.ec.europa.eu/taxation/vat/vat-directive/vat-identification-numbers_en
+- Extraction codes UE : [data/code-eu.csv](data/code-eu.csv), issue de Wikipedia `Modele:Etats UE`, realisee le 09/09/2026.
+
 ## Qualite et robustesse
 
-Points a preparer pendant le developpement :
+Points couverts :
 
 - chargement idempotent : relancer l'import ne duplique pas les lignes ;
 - separation claire entre valeur brute, valeur normalisee et verdict structurel ;
 - nettoyage tolerant des numeros TVA avant validation ;
 - sortie dediee aux cas a reviser humainement ;
-- tests automatises sur la phase 1 avec couverture actuelle a 100 % ;
-- a preparer en phase 2 : trois verdicts metier `valide`, `invalide`, `indetermine` ;
+- tests automatises avec couverture actuelle a 100 % ;
+- trois verdicts metier `valide`, `invalide`, `indetermine` ;
 - indisponibilite VIES stockee comme indeterminee, jamais comme invalide ;
 - campagne VIES reprenable apres interruption ;
 - mode echantillon parametrable ;
 - temporisation entre appels VIES ;
 - logs exploitables ;
-- tests sur la reprise et le contrat API.
+- API avec origine et fraicheur du verdict.
 
 ## Etat du depot
 
@@ -160,12 +207,12 @@ Deja present :
 - configuration d'environnement dans `.env.example` ;
 - pipeline phase 1 : import, rapport structurel et export humain ;
 - validation structurelle par formats pays ;
+- campagne VIES phase 2 ;
+- API FastAPI ;
+- rapport de reconciliation reproductible ;
 - tests automatises.
 
 A venir :
 
-- client VIES ;
-- API FastAPI ;
-- rapport de reconciliation reproductible ;
 - note d'architecture ;
 - journal de bord.

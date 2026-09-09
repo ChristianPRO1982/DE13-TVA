@@ -6,8 +6,10 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.141.1",
+    "httpx>=0.28.1",
     "pandas>=3.0.5",
     "psycopg[binary]>=3.3.2",
+    "uvicorn[standard]>=0.38.0",
 ]
 
 [build-system]

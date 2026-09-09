@@ -153,7 +153,7 @@ Cas a sortir :
 Format recommande :
 
 ```text
-reports/a_reviser.csv
+reports/phase_2/a_reviser.csv
 ```
 
 ou une table/vue PostgreSQL :

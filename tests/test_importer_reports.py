@@ -3,8 +3,11 @@ from pathlib import Path
 from de13_tva.importer import build_records
 from de13_tva.reports import (
     export_human_review_csv,
+    export_phase2_human_review_csv,
     format_import_report,
+    format_reconciliation_report,
     format_structural_report,
+    format_verify_report,
     write_text_report,
 )
 
@@ -53,6 +56,24 @@ def test_export_human_review_csv(tmp_path: Path):
     assert output.read_text(encoding="utf-8").splitlines()[1].startswith("1,Bad,QQ")
 
 
+def test_export_phase2_human_review_csv(tmp_path: Path):
+    output = tmp_path / "reports" / "phase_2" / "a_reviser.csv"
+    rows = [
+        {
+            "source": "api",
+            "input_raw": "---",
+            "numero_tva_nettoye": "",
+            "review_reason": "pays_absent",
+            "created_at": "2026-09-09T12:00:00Z",
+        }
+    ]
+
+    count = export_phase2_human_review_csv(rows, output)
+
+    assert count == 1
+    assert output.read_text(encoding="utf-8").splitlines()[1].startswith("api,---")
+
+
 def test_write_text_report(tmp_path: Path):
     output = tmp_path / "reports" / "phase_1" / "import-data.txt"
 
@@ -84,3 +105,43 @@ def test_format_structural_report():
     assert "Total lignes source: 10" in formatted
     assert "Appels VIES evites: 4" in formatted
     assert "- ok_structure: 6" in formatted
+
+
+def test_format_verify_report():
+    from types import SimpleNamespace
+
+    formatted = format_verify_report(
+        SimpleNamespace(
+            selected=2,
+            processed=2,
+            valid=1,
+            invalid=1,
+            indeterminate=0,
+            lines=["1/2 FR: valide", "2/2 BE: invalide"],
+        )
+    )
+
+    assert "Rapport verification VIES phase 2" in formatted
+    assert "Valides: 1" in formatted
+    assert "2/2 BE: invalide" in formatted
+
+
+def test_format_reconciliation_report():
+    report = {
+        "total_rows": 10,
+        "unique_cleaned": 8,
+        "vies_candidates": 6,
+        "vies_calls_avoided": 4,
+        "vies_verifications_total": 3,
+        "duplicate_numbers": 2,
+        "phase1_human_review": 1,
+        "phase2_human_review": 1,
+        "by_vies_verdict": [("valide", 2), ("indetermine", 1)],
+        "by_reason": [("ok_structure", 6), ("format_invalide", 4)],
+    }
+
+    formatted = format_reconciliation_report(report)
+
+    assert "Rapport reconciliation phase 2" in formatted
+    assert "Verifications VIES stockees: 3" in formatted
+    assert "- indetermine: 1" in formatted
