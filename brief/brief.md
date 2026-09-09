@@ -122,3 +122,12 @@ Validation partielle : un pipeline incomplet mais structuré, versionné et docu
 - L'API expose pour chaque verdict son origine (appel frais ou valeur connue) et sa fraîcheur. 
 - La documentation OpenAPI est accessible. 
 - Toute la pile se lance par une commande unique documentée.
+
+## Sources
+
+- ./data/ : liste des 10000 numéros
+- [VIES, vérification en ligne](https://ec.europa.eu/taxation_customs/vies/#/vat-validation)
+- [Commission européenne, TVA intracommunautaire](https://ec.europa.eu/taxation_customs/vies/rest-api/ms/FR/vat/27552032534)
+- [Commission européenne, TVA intracommunautaire](https://taxation-customs.ec.europa.eu/taxation/vat_en)
+- [Formats nationaux des numéros de TVA](https://taxation-customs.ec.europa.eu/taxation/vat/vat-directive/vat-identification-numbers_en)
+- [docker-compose.yml](https://simplonline-v3-prod.s3.eu-west-3.amazonaws.com/media/file/txt/docker-compose-6a9dbf6732d65125150724.txt)
