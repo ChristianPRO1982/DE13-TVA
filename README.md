@@ -215,7 +215,7 @@ Points couverts :
 - sortie dédiée aux cas à réviser humainement ;
 - tests automatisés avec une couverture actuelle à 100 % ;
 - trois verdicts métier `valide`, `invalide`, `indetermine` ;
-- indisponibilité VIES stockée comme indéterminée, jamais comme invalide ;
+- indisponibilité VIES historisée comme indéterminée, jamais comme invalide ;
 - campagne VIES reprenable après interruption ;
 - mode échantillon paramétrable ;
 - temporisation entre appels VIES ;

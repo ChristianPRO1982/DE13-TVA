@@ -100,7 +100,7 @@ class ViesClient:
                 error_message = None
             else:
                 verdict = INDETERMINATE_VIES
-                error_message = "Champ isValid absent ou non booleen"
+                error_message = "Champ isValid absent ou non booléen"
 
             return ViesVerification(
                 numero_tva_nettoye=numero_tva_nettoye,

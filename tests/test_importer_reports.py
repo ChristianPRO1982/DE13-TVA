@@ -186,6 +186,7 @@ def test_format_reconciliation_report():
     assert "Lignes source en attente de VIES: 4" in formatted
     assert "Verdicts finaux par ligne source:" in formatted
     assert "- valide: 3" in formatted
+    assert "- invalide: 0" in formatted
     assert "- indetermine: 1" in formatted
 
 
@@ -210,7 +211,9 @@ def test_format_reconciliation_report_without_vies_verdicts():
 
     formatted = format_reconciliation_report(report)
 
-    assert "- aucun" in formatted
+    assert "- valide: 0" in formatted
+    assert "- invalide: 0" in formatted
+    assert "- indetermine: 1" in formatted
 
 
 def test_format_demo_report():

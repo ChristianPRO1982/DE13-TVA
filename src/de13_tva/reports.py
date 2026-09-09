@@ -42,6 +42,8 @@ RECONCILIATION_DETAIL_COLUMNS = [
     "review_reason",
 ]
 
+VIES_VERDICT_ORDER = ("valide", "invalide", "indetermine")
+
 
 def write_text_report(content: str, output_file: Path) -> Path:
     output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -107,7 +109,7 @@ def format_reconciliation_report(report: dict[str, object]) -> str:
         "",
         "Verdicts finaux par ligne source:",
     ]
-    for verdict, count in report["by_final_verdict"]:
+    for verdict, count in _ordered_verdict_counts(report["by_final_verdict"]):
         lines.append(f"- {verdict}: {count}")
     lines.extend(
         [
@@ -115,19 +117,27 @@ def format_reconciliation_report(report: dict[str, object]) -> str:
             "Verdicts VIES courants:",
         ]
     )
-    if not report["by_vies_verdict"]:
-        lines.append("- aucun")
-    for verdict, count in report["by_vies_verdict"]:
+    for verdict, count in _ordered_verdict_counts(report["by_vies_verdict"]):
         lines.append(f"- {verdict}: {count}")
     lines.extend(["", "Tentatives VIES par verdict:"])
-    if not report["by_attempt_verdict"]:
-        lines.append("- aucune")
-    for verdict, count in report["by_attempt_verdict"]:
+    for verdict, count in _ordered_verdict_counts(report["by_attempt_verdict"]):
         lines.append(f"- {verdict}: {count}")
     lines.extend(["", "Motifs structurels:"])
     for reason, count in report["by_reason"]:
         lines.append(f"- {reason}: {count}")
     return "\n".join(lines)
+
+
+def _ordered_verdict_counts(rows: object) -> list[tuple[str, int]]:
+    counts = {verdict: 0 for verdict in VIES_VERDICT_ORDER}
+    counts.update(dict(rows))
+    ordered = [(verdict, counts[verdict]) for verdict in VIES_VERDICT_ORDER]
+    extras = sorted(
+        (verdict, count)
+        for verdict, count in counts.items()
+        if verdict not in VIES_VERDICT_ORDER
+    )
+    return ordered + extras
 
 
 def export_reconciliation_details_csv(

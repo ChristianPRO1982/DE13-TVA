@@ -12,14 +12,19 @@ Cas à réviser phase 1: 2550
 Cas à réviser phase 2: 0
 
 Verdicts finaux par ligne source:
-- indetermine: 9996
+- valide: 0
 - invalide: 4
+- indetermine: 9996
 
 Verdicts VIES courants:
+- valide: 0
 - invalide: 3
+- indetermine: 0
 
 Tentatives VIES par verdict:
+- valide: 0
 - invalide: 3
+- indetermine: 0
 
 Motifs structurels:
 - ok_structure: 7450

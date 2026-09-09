@@ -53,7 +53,7 @@ def test_vies_missing_is_valid_is_indeterminate():
     result = ViesClient().verify("FR27552032534", timeout=1.0, client=client)
 
     assert result.vies_verdict == INDETERMINATE_VIES
-    assert result.error_message == "Champ isValid absent ou non booleen"
+    assert result.error_message == "Champ isValid absent ou non booléen"
 
 
 def test_vies_non_object_json_is_indeterminate():
