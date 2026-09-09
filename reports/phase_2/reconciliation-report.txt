@@ -1,14 +1,18 @@
-Rapport reconciliation phase 2
+Rapport réconciliation phase 2
 Total lignes source: 10000
-Numeros nettoyes uniques: 9303
+Numéros nettoyés uniques: 9303
 Candidats VIES uniques: 7111
-Appels VIES evites: 2889
-Verifications VIES stockees: 3
-Doublons par numero nettoye: 398
-Cas a reviser phase 1: 2550
-Cas a reviser phase 2: 0
+Appels VIES évités: 2889
+Vérifications VIES stockées: 3
+Doublons par numéro nettoyé: 398
+Cas à réviser phase 1: 2550
+Cas à réviser phase 2: 0
 
-Verdicts VIES:
+Verdicts finaux par ligne source:
+- indetermine: 9996
+- invalide: 4
+
+Verdicts VIES stockés:
 - invalide: 3
 
 Motifs structurels:

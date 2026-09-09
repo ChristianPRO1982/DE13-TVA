@@ -1,4 +1,4 @@
-"""Command line pipeline for phase 1."""
+"""Command line pipeline for the DE13 TVA project."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from de13_tva.database import (
     ensure_schema,
     fetch_human_review_rows,
     fetch_phase2_human_review_rows,
+    fetch_reconciliation_details,
     fetch_reconciliation_report,
     fetch_structural_report,
     upsert_records,
@@ -19,6 +20,8 @@ from de13_tva.importer import build_records
 from de13_tva.reports import (
     export_human_review_csv,
     export_phase2_human_review_csv,
+    export_reconciliation_details_csv,
+    format_demo_report,
     format_import_report,
     format_reconciliation_report,
     format_structural_report,
@@ -94,6 +97,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=DEFAULT_PHASE_2_REPORTS_DIR / "reconciliation-report.txt",
     )
+    reconciliation_parser.add_argument(
+        "--details-output",
+        type=Path,
+        default=DEFAULT_PHASE_2_REPORTS_DIR / "reconciliation-details.csv",
+    )
     reconciliation_parser.set_defaults(func=reconciliation_report)
 
     phase2_review_parser = subparsers.add_parser("export-phase2-human-review")
@@ -103,6 +111,20 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_PHASE_2_REPORTS_DIR / "a_reviser.csv",
     )
     phase2_review_parser.set_defaults(func=export_phase2_human_review)
+
+    demo_parser = subparsers.add_parser("demo-run")
+    demo_parser.add_argument("--sample-size", type=int, default=3)
+    demo_parser.add_argument("--delay", type=float, default=0.0)
+    demo_parser.add_argument(
+        "--timeout", type=float, default=DEFAULT_VIES_TIMEOUT_SECONDS
+    )
+    demo_parser.add_argument("--skip-vies", action="store_true")
+    demo_parser.add_argument(
+        "--report-output",
+        type=Path,
+        default=DEFAULT_PHASE_2_REPORTS_DIR / "demo-run.txt",
+    )
+    demo_parser.set_defaults(func=demo_run)
 
     return parser
 
@@ -157,10 +179,13 @@ def reconciliation_report(args: argparse.Namespace) -> None:
     with connect() as conn:
         ensure_schema(conn)
         report = fetch_reconciliation_report(conn)
+        details = fetch_reconciliation_details(conn)
     content = format_reconciliation_report(report)
     write_text_report(content, args.output)
+    exported = export_reconciliation_details_csv(details, args.details_output)
     print(content)
     print(f"Rapport ecrit dans {args.output}")
+    print(f"{exported} lignes exportees vers {args.details_output}")
 
 
 def export_phase2_human_review(args: argparse.Namespace) -> None:
@@ -169,6 +194,71 @@ def export_phase2_human_review(args: argparse.Namespace) -> None:
         rows = fetch_phase2_human_review_rows(conn)
     exported = export_phase2_human_review_csv(rows, args.output)
     print(f"{exported} lignes exportees vers {args.output}")
+
+
+def demo_run(args: argparse.Namespace) -> None:
+    records = build_records(DEFAULT_DATA_FILE, DEFAULT_EU_CODES_FILE)
+    with connect() as conn:
+        ensure_schema(conn)
+        imported = upsert_records(conn, records)
+
+        structural = fetch_structural_report(conn)
+        phase1_review_rows = fetch_human_review_rows(conn)
+
+        if not args.skip_vies:
+            verify_summary = run_vies_campaign(
+                conn,
+                client=ViesClient(),
+                sample_size=args.sample_size,
+                limit=None,
+                delay=args.delay,
+                timeout=args.timeout,
+                force_refresh=False,
+                refresh_days=None,
+            )
+            write_text_report(
+                format_verify_report(verify_summary),
+                DEFAULT_PHASE_2_REPORTS_DIR / "verify-vies.txt",
+            )
+
+        reconciliation = fetch_reconciliation_report(conn)
+        reconciliation_details = fetch_reconciliation_details(conn)
+        phase2_review_rows = fetch_phase2_human_review_rows(conn)
+
+    write_text_report(
+        format_import_report(imported),
+        DEFAULT_PHASE_1_REPORTS_DIR / "import-data.txt",
+    )
+    write_text_report(
+        format_structural_report(structural),
+        DEFAULT_PHASE_1_REPORTS_DIR / "structural-report.txt",
+    )
+    export_human_review_csv(
+        phase1_review_rows,
+        DEFAULT_PHASE_1_REPORTS_DIR / "a_reviser.csv",
+    )
+    write_text_report(
+        format_reconciliation_report(reconciliation),
+        DEFAULT_PHASE_2_REPORTS_DIR / "reconciliation-report.txt",
+    )
+    export_reconciliation_details_csv(
+        reconciliation_details,
+        DEFAULT_PHASE_2_REPORTS_DIR / "reconciliation-details.csv",
+    )
+    export_phase2_human_review_csv(
+        phase2_review_rows,
+        DEFAULT_PHASE_2_REPORTS_DIR / "a_reviser.csv",
+    )
+    content = format_demo_report(
+        imported=imported,
+        phase1_review_count=len(phase1_review_rows),
+        phase2_review_count=len(phase2_review_rows),
+        sample_size=args.sample_size,
+        skipped_vies=args.skip_vies,
+    )
+    write_text_report(content, args.report_output)
+    print(content)
+    print(f"Rapport ecrit dans {args.report_output}")
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -56,6 +56,20 @@ def test_vies_missing_is_valid_is_indeterminate():
     assert result.error_message == "Champ isValid absent ou non booleen"
 
 
+def test_vies_non_object_json_is_indeterminate():
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json=["unexpected"])
+        )
+    )
+
+    result = ViesClient().verify("FR27552032534", timeout=1.0, client=client)
+
+    assert result.vies_verdict == INDETERMINATE_VIES
+    assert result.response_payload == ["unexpected"]
+    assert result.error_message == "JSON inattendu: objet attendu"
+
+
 def test_vies_http_error_is_indeterminate():
     client = httpx.Client(
         transport=httpx.MockTransport(lambda request: httpx.Response(503))

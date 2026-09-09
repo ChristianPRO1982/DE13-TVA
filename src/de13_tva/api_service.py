@@ -60,6 +60,7 @@ def verify_vat_for_api(
     if (
         stored
         and not force_refresh
+        and stored["vies_verdict"] != INDETERMINATE_VIES
         and is_fresh(stored["checked_at"], max_age_days=max_age_days, now=checked_now)
     ):
         return _response_from_stored(
@@ -67,8 +68,8 @@ def verify_vat_for_api(
         )
 
     result = vies_client.verify(normalized, timeout=timeout)
+    upsert_vies_verification(conn, result, origin="api")
     if result.vies_verdict != INDETERMINATE_VIES:
-        upsert_vies_verification(conn, result, origin="api")
         return _response(
             numero,
             normalized,
@@ -118,6 +119,7 @@ def _response_from_stored(
     now: datetime,
 ) -> dict[str, Any]:
     checked_at = stored["checked_at"]
+    needs_human_review = stored["vies_verdict"] == INDETERMINATE_VIES
     return _response(
         original,
         normalized,
@@ -125,8 +127,8 @@ def _response_from_stored(
         origin,
         checked_at,
         freshness_days(checked_at, now),
-        False,
-        None,
+        needs_human_review,
+        stored.get("error_message") if needs_human_review else None,
     )
 
 

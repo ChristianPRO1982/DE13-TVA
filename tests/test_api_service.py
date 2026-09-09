@@ -139,7 +139,9 @@ def test_api_force_refresh_ignores_fresh_stored_value(monkeypatch):
 
 
 def test_api_returns_stale_stored_when_refresh_is_indeterminate(monkeypatch):
-    setup_api_service(monkeypatch, stored_verification(NOW - timedelta(days=40)))
+    _, saved = setup_api_service(
+        monkeypatch, stored_verification(NOW - timedelta(days=40))
+    )
     client = FakeClient(result("FR27552032534", INDETERMINATE_VIES, "timeout"))
 
     response = api_service.verify_vat_for_api(
@@ -154,10 +156,12 @@ def test_api_returns_stale_stored_when_refresh_is_indeterminate(monkeypatch):
 
     assert response["origin"] == "stored_stale"
     assert response["freshness_days"] == 40
+    assert saved[0][0].vies_verdict == INDETERMINATE_VIES
+    assert saved[0][1] == "api"
 
 
 def test_api_unavailable_without_stored_value_records_review(monkeypatch):
-    reviews, _ = setup_api_service(monkeypatch)
+    reviews, saved = setup_api_service(monkeypatch)
     client = FakeClient(result("FR27552032534", INDETERMINATE_VIES, "timeout"))
 
     response = api_service.verify_vat_for_api(
@@ -173,3 +177,25 @@ def test_api_unavailable_without_stored_value_records_review(monkeypatch):
     assert response["origin"] == "unavailable"
     assert response["needs_human_review"]
     assert reviews[0]["review_reason"] == "timeout"
+    assert saved[0][0].vies_verdict == INDETERMINATE_VIES
+    assert saved[0][1] == "api"
+
+
+def test_api_ignores_fresh_indeterminate_stored_value(monkeypatch):
+    stored = stored_verification(NOW)
+    stored["vies_verdict"] = INDETERMINATE_VIES
+    _, saved = setup_api_service(monkeypatch, stored)
+    client = FakeClient(result("FR27552032534", VALID_VIES))
+
+    response = api_service.verify_vat_for_api(
+        "FR27552032534",
+        object(),
+        vies_client=client,
+        force_refresh=False,
+        max_age_days=30,
+        timeout=1.0,
+        now=NOW,
+    )
+
+    assert response["origin"] == "vies_fresh"
+    assert saved[0][0].vies_verdict == VALID_VIES

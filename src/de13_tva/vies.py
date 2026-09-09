@@ -24,7 +24,7 @@ class ViesVerification:
     checked_at: datetime
     http_status: int | None
     response_time_ms: int | None
-    response_payload: dict[str, Any] | None
+    response_payload: Any | None
     error_message: str | None
 
 
@@ -80,6 +80,17 @@ class ViesClient:
                     f"JSON invalide: {exc}",
                 )
 
+            if not isinstance(payload, dict):
+                return self._indeterminate(
+                    numero_tva_nettoye,
+                    country_code,
+                    vat_number,
+                    response.status_code,
+                    response_time_ms,
+                    payload,
+                    "JSON inattendu: objet attendu",
+                )
+
             is_valid = payload.get("isValid")
             if is_valid is True:
                 verdict = VALID_VIES
@@ -123,7 +134,7 @@ class ViesClient:
         vat_number: str,
         http_status: int | None,
         response_time_ms: int | None,
-        response_payload: dict[str, Any] | None,
+        response_payload: Any | None,
         error_message: str,
     ) -> ViesVerification:
         return ViesVerification(

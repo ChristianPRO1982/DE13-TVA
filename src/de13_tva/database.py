@@ -388,6 +388,63 @@ def fetch_phase2_human_review_rows(conn) -> list[dict[str, object]]:
         return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]
 
 
+def fetch_reconciliation_details(conn) -> list[dict[str, object]]:
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                vr.source_id,
+                vr.raison_sociale,
+                vr.pays_declare_brut,
+                vr.pays_declare_normalise,
+                vr.numero_tva_brut,
+                vr.numero_tva_nettoye,
+                vr.structure_verdict,
+                vr.structure_reason,
+                CASE
+                    WHEN vr.structure_verdict = 'valid'
+                         AND vv.vies_verdict IN ('valide', 'invalide')
+                        THEN vv.vies_verdict
+                    ELSE 'indetermine'
+                END AS final_verdict,
+                CASE
+                    WHEN vr.structure_verdict <> 'valid' THEN 'structural_reject'
+                    WHEN vv.numero_tva_nettoye IS NULL THEN 'pending_vies'
+                    ELSE vv.origin
+                END AS final_origin,
+                vv.checked_at,
+                CASE
+                    WHEN vv.checked_at IS NULL THEN NULL
+                    ELSE floor(extract(epoch FROM (now() - vv.checked_at)) / 86400)::int
+                END AS freshness_days,
+                (
+                    vr.needs_human_review
+                    OR vv.vies_verdict = 'indetermine'
+                    OR (
+                        vr.structure_verdict = 'valid'
+                        AND vv.numero_tva_nettoye IS NULL
+                    )
+                ) AS needs_human_review,
+                CASE
+                    WHEN vr.human_review_reason IS NOT NULL
+                        THEN vr.human_review_reason
+                    WHEN vv.vies_verdict = 'indetermine'
+                        THEN coalesce(vv.error_message, 'VIES indetermine')
+                    WHEN vr.structure_verdict = 'valid'
+                         AND vv.numero_tva_nettoye IS NULL
+                        THEN 'VIES non verifie'
+                    ELSE NULL
+                END AS review_reason
+            FROM vat_records vr
+            LEFT JOIN vies_verifications vv
+                ON vv.numero_tva_nettoye = vr.numero_tva_nettoye
+            ORDER BY vr.source_id
+            """
+        )
+        columns = [column.name for column in cursor.description]
+        return [dict(zip(columns, row, strict=True)) for row in cursor.fetchall()]
+
+
 def fetch_reconciliation_report(conn) -> dict[str, object]:
     structural = fetch_structural_report(conn)
     with conn.cursor() as cursor:
@@ -424,10 +481,32 @@ def fetch_reconciliation_report(conn) -> dict[str, object]:
         cursor.execute("SELECT count(*) FROM human_review_items")
         phase2_review = cursor.fetchone()[0]
 
+        cursor.execute(
+            """
+            SELECT final_verdict, count(*)
+            FROM (
+                SELECT
+                    CASE
+                        WHEN vr.structure_verdict = 'valid'
+                             AND vv.vies_verdict IN ('valide', 'invalide')
+                            THEN vv.vies_verdict
+                        ELSE 'indetermine'
+                    END AS final_verdict
+                FROM vat_records vr
+                LEFT JOIN vies_verifications vv
+                    ON vv.numero_tva_nettoye = vr.numero_tva_nettoye
+            ) reconciled
+            GROUP BY final_verdict
+            ORDER BY final_verdict
+            """
+        )
+        by_final_verdict = cursor.fetchall()
+
     return {
         **structural,
         "vies_verifications_total": verifications_total,
         "by_vies_verdict": by_vies_verdict,
+        "by_final_verdict": by_final_verdict,
         "duplicate_numbers": duplicate_numbers,
         "phase1_human_review": phase1_review,
         "phase2_human_review": phase2_review,

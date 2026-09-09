@@ -271,18 +271,42 @@ def test_fetch_phase2_human_review_rows():
     ]
 
 
+def test_fetch_reconciliation_details():
+    conn = FakeConnection()
+    conn.cursor_obj.description = [
+        FakeDescription("source_id"),
+        FakeDescription("final_verdict"),
+    ]
+    conn.cursor_obj.fetchall_results = [[(1, "valide"), (2, "indetermine")]]
+
+    rows = database.fetch_reconciliation_details(conn)
+
+    assert rows == [
+        {"source_id": 1, "final_verdict": "valide"},
+        {"source_id": 2, "final_verdict": "indetermine"},
+    ]
+    assert "final_verdict" in conn.cursor_obj.queries[0]
+    assert "LEFT JOIN vies_verifications" in conn.cursor_obj.queries[0]
+
+
 def test_fetch_reconciliation_report():
     conn = FakeConnection()
     conn.cursor_obj.fetchone_results = [(10,), (8,), (6,), (2,), (3,), (4,), (5,)]
     conn.cursor_obj.fetchall_results = [
         [("ok_structure", 6)],
         [("indetermine", 1), ("valide", 1)],
+        [("indetermine", 8), ("invalide", 1), ("valide", 1)],
     ]
 
     report = database.fetch_reconciliation_report(conn)
 
     assert report["total_rows"] == 10
     assert report["vies_verifications_total"] == 2
+    assert report["by_final_verdict"] == [
+        ("indetermine", 8),
+        ("invalide", 1),
+        ("valide", 1),
+    ]
     assert report["duplicate_numbers"] == 3
     assert report["phase1_human_review"] == 4
     assert report["phase2_human_review"] == 5
@@ -393,18 +417,40 @@ def test_pipeline_verify_vies(monkeypatch, tmp_path: Path, capsys):
 def test_pipeline_reconciliation_report(monkeypatch, tmp_path: Path, capsys):
     conn = FakeConnection()
     output = tmp_path / "reconciliation.txt"
+    details = tmp_path / "reconciliation.csv"
     monkeypatch.setattr(pipeline, "connect", lambda: conn)
     monkeypatch.setattr(pipeline, "ensure_schema", lambda connection: None)
     monkeypatch.setattr(pipeline, "fetch_reconciliation_report", lambda connection: {})
+    monkeypatch.setattr(
+        pipeline, "fetch_reconciliation_details", lambda connection: [{"source_id": 1}]
+    )
     monkeypatch.setattr(
         pipeline,
         "format_reconciliation_report",
         lambda report: "reconciliation",
     )
+    monkeypatch.setattr(
+        pipeline,
+        "export_reconciliation_details_csv",
+        lambda rows, output_file: len(rows),
+    )
 
-    assert pipeline.main(["reconciliation-report", "--output", str(output)]) == 0
+    assert (
+        pipeline.main(
+            [
+                "reconciliation-report",
+                "--output",
+                str(output),
+                "--details-output",
+                str(details),
+            ]
+        )
+        == 0
+    )
 
-    assert "Rapport ecrit" in capsys.readouterr().out
+    captured = capsys.readouterr().out
+    assert "Rapport ecrit" in captured
+    assert f"1 lignes exportees vers {details}" in captured
     assert output.read_text(encoding="utf-8") == "reconciliation\n"
 
 
@@ -427,3 +473,148 @@ def test_pipeline_export_phase2_human_review(monkeypatch, tmp_path: Path, capsys
     assert pipeline.main(["export-phase2-human-review", "--output", str(output)]) == 0
 
     assert f"1 lignes exportees vers {output}" in capsys.readouterr().out
+
+
+def test_pipeline_demo_run(monkeypatch, tmp_path: Path, capsys):
+    from types import SimpleNamespace
+
+    conn = FakeConnection()
+    monkeypatch.setattr(pipeline, "DEFAULT_PHASE_1_REPORTS_DIR", tmp_path / "phase_1")
+    monkeypatch.setattr(pipeline, "DEFAULT_PHASE_2_REPORTS_DIR", tmp_path / "phase_2")
+    monkeypatch.setattr(pipeline, "DEFAULT_DATA_FILE", tmp_path / "data.csv")
+    monkeypatch.setattr(pipeline, "DEFAULT_EU_CODES_FILE", tmp_path / "eu.csv")
+    monkeypatch.setattr(pipeline, "connect", lambda: conn)
+    monkeypatch.setattr(pipeline, "ensure_schema", lambda connection: None)
+    monkeypatch.setattr(pipeline, "build_records", lambda csv, eu: ["record"])
+    monkeypatch.setattr(
+        pipeline, "upsert_records", lambda connection, records: len(records)
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "fetch_structural_report",
+        lambda connection: {
+            "total_rows": 1,
+            "unique_cleaned": 1,
+            "vies_candidates": 1,
+            "vies_calls_avoided": 0,
+            "by_reason": [("ok_structure", 1)],
+        },
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "fetch_reconciliation_report",
+        lambda connection: {
+            "total_rows": 1,
+            "unique_cleaned": 1,
+            "vies_candidates": 1,
+            "vies_calls_avoided": 0,
+            "vies_verifications_total": 0,
+            "duplicate_numbers": 0,
+            "phase1_human_review": 0,
+            "phase2_human_review": 0,
+            "by_vies_verdict": [],
+            "by_final_verdict": [("indetermine", 1)],
+            "by_reason": [("ok_structure", 1)],
+        },
+    )
+    monkeypatch.setattr(pipeline, "fetch_human_review_rows", lambda connection: [])
+    monkeypatch.setattr(pipeline, "fetch_reconciliation_details", lambda connection: [])
+    monkeypatch.setattr(
+        pipeline, "fetch_phase2_human_review_rows", lambda connection: []
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "run_vies_campaign",
+        lambda connection, **kwargs: SimpleNamespace(
+            selected=0,
+            processed=0,
+            valid=0,
+            invalid=0,
+            indeterminate=0,
+            lines=[],
+        ),
+    )
+
+    assert (
+        pipeline.main(
+            [
+                "demo-run",
+                "--sample-size",
+                "1",
+                "--delay",
+                "0",
+                "--report-output",
+                str(tmp_path / "demo.txt"),
+            ]
+        )
+        == 0
+    )
+
+    assert "Déroulé de démonstration" in capsys.readouterr().out
+    assert (tmp_path / "phase_2" / "reconciliation-details.csv").exists()
+
+
+def test_pipeline_demo_run_can_skip_vies(monkeypatch, tmp_path: Path, capsys):
+    conn = FakeConnection()
+    monkeypatch.setattr(pipeline, "DEFAULT_PHASE_1_REPORTS_DIR", tmp_path / "phase_1")
+    monkeypatch.setattr(pipeline, "DEFAULT_PHASE_2_REPORTS_DIR", tmp_path / "phase_2")
+    monkeypatch.setattr(pipeline, "DEFAULT_DATA_FILE", tmp_path / "data.csv")
+    monkeypatch.setattr(pipeline, "DEFAULT_EU_CODES_FILE", tmp_path / "eu.csv")
+    monkeypatch.setattr(pipeline, "connect", lambda: conn)
+    monkeypatch.setattr(pipeline, "ensure_schema", lambda connection: None)
+    monkeypatch.setattr(pipeline, "build_records", lambda csv, eu: ["record"])
+    monkeypatch.setattr(
+        pipeline, "upsert_records", lambda connection, records: len(records)
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "fetch_structural_report",
+        lambda connection: {
+            "total_rows": 1,
+            "unique_cleaned": 1,
+            "vies_candidates": 1,
+            "vies_calls_avoided": 0,
+            "by_reason": [("ok_structure", 1)],
+        },
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "fetch_reconciliation_report",
+        lambda connection: {
+            "total_rows": 1,
+            "unique_cleaned": 1,
+            "vies_candidates": 1,
+            "vies_calls_avoided": 0,
+            "vies_verifications_total": 0,
+            "duplicate_numbers": 0,
+            "phase1_human_review": 0,
+            "phase2_human_review": 0,
+            "by_vies_verdict": [],
+            "by_final_verdict": [("indetermine", 1)],
+            "by_reason": [("ok_structure", 1)],
+        },
+    )
+    monkeypatch.setattr(pipeline, "fetch_human_review_rows", lambda connection: [])
+    monkeypatch.setattr(pipeline, "fetch_reconciliation_details", lambda connection: [])
+    monkeypatch.setattr(
+        pipeline, "fetch_phase2_human_review_rows", lambda connection: []
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "run_vies_campaign",
+        lambda connection, **kwargs: (_ for _ in ()).throw(AssertionError),
+    )
+
+    assert (
+        pipeline.main(
+            [
+                "demo-run",
+                "--skip-vies",
+                "--report-output",
+                str(tmp_path / "demo.txt"),
+            ]
+        )
+        == 0
+    )
+
+    assert "Campagne VIES ignorée sur demande." in capsys.readouterr().out

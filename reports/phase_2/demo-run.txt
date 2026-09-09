@@ -1,0 +1,6 @@
+Déroulé de démonstration
+Lignes importées ou mises à jour: 10000
+Cas à réviser phase 1 exportés: 2550
+Campagne VIES ignorée sur demande.
+Cas à réviser phase 2 exportés: 0
+Rapports générés dans reports/phase_1/ et reports/phase_2/.

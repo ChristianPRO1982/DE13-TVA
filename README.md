@@ -44,6 +44,14 @@ Lancer PostgreSQL :
 docker compose up -d
 ```
 
+Commande unique de démonstration, une fois PostgreSQL lancé :
+
+```bash
+uv run python -m de13_tva.pipeline demo-run --sample-size 3 --delay 0
+```
+
+Cette commande importe les données, régénère les rapports phase 1, lance une campagne VIES échantillon, puis produit les rapports phase 2.
+
 Arrêter PostgreSQL :
 
 ```bash
@@ -96,6 +104,7 @@ Chaque commande produit aussi un fichier dans `reports/phase_2/` :
 
 - `verify-vies.txt` ;
 - `reconciliation-report.txt` ;
+- `reconciliation-details.csv` ;
 - `a_reviser.csv`.
 
 Lancer l'API :
@@ -172,6 +181,7 @@ Résultat actuel de la phase 2 après échantillon VIES de 3 numéros :
 - 0 valide ;
 - 0 indéterminé ;
 - rapport de réconciliation : `reports/phase_2/reconciliation-report.txt` ;
+- détail ligne par ligne : `reports/phase_2/reconciliation-details.csv` ;
 - export humain phase 2 : `reports/phase_2/a_reviser.csv`.
 
 ## Sources
@@ -196,7 +206,10 @@ Points couverts :
 - mode échantillon paramétrable ;
 - temporisation entre appels VIES ;
 - logs exploitables ;
-- API avec origine et fraîcheur du verdict.
+- API avec origine et fraîcheur du verdict ;
+- rapport de réconciliation consolidé par ligne source.
+
+Limite assumée : le module officiel de validation structurelle avec clés de contrôle mentionné dans le brief n'est pas présent dans le dépôt. La validation actuelle repose donc sur des formats par pays, isolés dans le code pour pouvoir être remplacés si ce module est fourni.
 
 ## État du dépôt
 
@@ -212,9 +225,7 @@ Déjà présent :
 - campagne VIES phase 2 ;
 - API FastAPI ;
 - rapport de réconciliation reproductible ;
-- tests automatisés.
-
-À venir :
-
-- note d'architecture ;
-- journal de bord.
+- détail de réconciliation ligne par ligne ;
+- tests automatisés ;
+- note d'architecture : [docs/architecture.md](docs/architecture.md) ;
+- journal de bord : [docs/journal-de-bord.md](docs/journal-de-bord.md).
